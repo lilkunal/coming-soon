@@ -97,7 +97,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x15161a);
 scene.fog = new THREE.Fog(0x15161a, R * 2.4, R * 4.5);
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
-const back = Math.max(1, 0.85 / camera.aspect);   // tall phone screens need the camera further out
+const back = Math.max(1, 0.55 / camera.aspect);   // a little further out on tall phones, but not so far they shrink
 camera.position.set(0, R * 0.62, R * 1.85).multiplyScalar(back);   // low, so you see faces, not head-tops
 scene.fog.near *= back; scene.fog.far *= back;
 
