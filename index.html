@@ -59,6 +59,15 @@ const LINES = {
   gamer: ["GG, stuartboi#0702 wins", "one more match", "lag!! that was lag", "my Steam library judges me",
     "T2 console, never forget", "noob detected", "brb, respawning"],
   player: ["mine!", "pass!!", "offside!", "VAR!!", "my ball", "nutmeg!"],
+  coder: ["who wrote this? oh. me.", "it compiled. I'm scared.", "undefined is not a function",
+    "stack overflow is down?!", "git push --force (sorry)", "just one more console.log"],
+  rage: ["RAGE QUIT", "why won't you CENTRE", "I hate CSS", "it worked 5 minutes ago!!"],
+  dj: ["drop the bass", "this one's for the recruiters", "now playing: npm install", "lo-fi beats to debug to"],
+  sleeper: ["Z z z", "5 more minutes", "dreaming in hex", "zzz... deploy... zzz"],
+  selfie: ["for the gram", "LinkedIn post incoming", "#opentowork", "is my good side the left one?",
+    "thought leadership pose", "humbled to announce..."],
+  runner: ["COFFEE!!", "deadline is TODAY", "can't stop, won't stop", "4th cup, who's counting"],
+  courier: ["your catalogue, sir", "200 products, coming through", "mind the box", "signed, sealed, deployed"],
   hit: ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed", "HR!!"],
 };
 const ACTS = ["Wave", "Dance", "Jump", "ThumbsUp", "Yes", "No", "Sitting"];
@@ -166,18 +175,32 @@ function face(b, name, v) {
 }
 function calm(b) { face(b, "Surprised", 0); face(b, "Angry", 0); face(b, "Sad", 0); }
 
+// robots that stay in one spot doing their thing; `every` = how often they have a moment
+const SPEC = {
+  gamer:   { clip: "Sitting" },
+  chill:   { clip: "Sitting", sad: 0.55 },                        // the heavy-lidded look
+  coder:   { clip: "Sitting", every: [9, 15], fit: () => "Punch", fitLines: "rage" },
+  dj:      { clip: "Dance" },
+  sleeper: { clip: "Death", once: true },
+  selfie:  { clip: "Idle", every: [3, 6], fit: () => pick(["Wave", "ThumbsUp", "Yes"]) },
+};
+
 // what each kind of robot goes back to doing
 function resume(b) {
   calm(b);
+  const spec = SPEC[b.role];
   if (b.role === "crowd") {
     b.state = "walk"; b.run = Math.random() < 0.25; b.heading += rnd(-1.4, 1.4); b.timer = rnd(2, 6);
     play(b, b.run ? "Running" : "Walking", false);
   } else if (b.role === "player") {
     b.state = "chase"; play(b, "Running", false);
+  } else if (b.role === "runner" || b.role === "courier") {
+    b.state = "loop"; play(b, b.role === "runner" ? "Running" : "Walking", false);
   } else {
     b.state = "sit"; b.heading = b.homeHeading; b.root.position.copy(b.home);
-    play(b, "Sitting", false);
-    if (b.role === "chill") face(b, "Sad", 0.55);   // the heavy-lidded look
+    play(b, spec.clip, !!spec.once);
+    if (spec.sad) face(b, "Sad", spec.sad);
+    if (spec.every) b.fitIn = rnd(...spec.every);
   }
 }
 function act(b, name = pick(ACTS), ms) {
@@ -245,6 +268,7 @@ function makeBot(gltf, { role, color, pos, heading = rnd(0, Math.PI * 2), team =
 }
 
 let joint = null;
+const lights = [];
 
 new GLTFLoader().load("robot.glb", gltf => {
   for (let i = 0; i < CROWD; i++) {
@@ -270,6 +294,47 @@ new GLTFLoader().load("robot.glb", gltf => {
   ember.position.x = 0.22; j.add(ember);
   hold(chill, j);
   joint = ember;
+
+  // a world-space prop in front of a robot, `dist` along the way it faces
+  const ahead = (b, dist, y) => new THREE.Vector3(
+    b.home.x + Math.sin(b.homeHeading) * dist, y, b.home.z + Math.cos(b.homeHeading) * dist);
+  const box = (w, h, d, c, at, glow) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), glow ? new THREE.MeshBasicMaterial({ color: c }) : mat(c));
+    m.position.copy(at); m.castShadow = !glow; scene.add(m); return m;
+  };
+
+  // the coder: desk, glowing laptop, and the occasional punch at it
+  const coder = makeBot(gltf, { role: "coder", color: 0x9b6bff, pos: new THREE.Vector3(-R * 0.45, 0, -R * 0.58), heading: 0.4 });
+  box(1.4, 0.7, 0.8, 0x3b2f2a, ahead(coder, 1.3, 0.35));
+  box(0.7, 0.04, 0.45, 0x1b1c20, ahead(coder, 1.25, 0.72));
+  box(0.7, 0.45, 0.03, 0x9fd3ff, ahead(coder, 1.5, 0.97), true).rotation.y = coder.homeHeading;
+
+  // the DJ: decks and three lights that won't sit still
+  const dj = makeBot(gltf, { role: "dj", color: 0xec5f9a, pos: new THREE.Vector3(0, 0, -R * 0.72), heading: 0 });
+  box(2.2, 0.9, 0.8, 0x1b1c20, ahead(dj, 1.2, 0.45)).rotation.y = dj.homeHeading;
+  for (let i = -1; i <= 1; i++) {
+    const l = box(0.35, 0.35, 0.35, 0xffffff, new THREE.Vector3(dj.home.x + i * 1.1, 2.9, dj.home.z - 0.6), true);
+    lights.push(l);
+  }
+
+  // the sleeper: flat out, mid-shift
+  makeBot(gltf, { role: "sleeper", color: 0xbfc5cf, pos: new THREE.Vector3(R * 0.48, 0, -R * 0.58), heading: -0.8 });
+
+  // the selfie one: phone out, posing for LinkedIn
+  const selfie = makeBot(gltf, { role: "selfie", color: 0xf6c445, pos: new THREE.Vector3(R * 0.82, 0, -R * 0.05), heading: -1.2 });
+  hold(selfie, new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.03), mat(0x111111)));
+
+  // the coffee runner: laps, cup in hand
+  const runner = makeBot(gltf, { role: "runner", color: 0xff7a3d, pos: new THREE.Vector3(-R * 0.8, 0, -R * 0.05) });
+  runner.ang = 0;
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.24, 10), mat(0xf2efe6));
+  hold(runner, cup);
+
+  // the courier: one Pixel Pull block, carried back and forth for ever
+  const courier = makeBot(gltf, { role: "courier", color: 0x38bdf8, pos: new THREE.Vector3(-R * 0.25, 0, R * 0.88) });
+  courier.b = new THREE.Vector3(R * 0.25, 0, R * 0.88);
+  courier.toB = true;
+  hold(courier, new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat(0xe8573f)));
 
   if (still) { controls.update(); renderer.render(scene, camera); }
 });
@@ -363,6 +428,23 @@ function tick() {
       chase(b, dt);
     } else if (b.state === "sit") {
       if (b.talk <= 0) { say(b, pick(LINES[b.role]), 2600); b.talk = rnd(5, 10); }
+      const spec = SPEC[b.role];
+      if (spec.every && (b.fitIn -= dt) <= 0) {
+        act(b, spec.fit());
+        if (spec.fitLines) { face(b, "Angry", 1); say(b, pick(LINES[spec.fitLines]), 1800); }
+      }
+    } else if (b.state === "loop") {
+      if (b.role === "runner") {                       // laps of a small circle, forever
+        b.ang += 1.7 * dt;
+        p.set(b.home.x + Math.cos(b.ang) * 1.8, 0, b.home.z + Math.sin(b.ang) * 1.8);
+        b.heading = Math.atan2(-Math.sin(b.ang), Math.cos(b.ang));
+      } else {                                         // back and forth between two spots
+        const t = b.toB ? b.b : b.home;
+        const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
+        if (d < 0.3) { b.toB = !b.toB; say(b, pick(LINES.courier), 1800); }
+        else { b.heading = Math.atan2(dx, dz); p.x += dx / d * 1.5 * dt; p.z += dz / d * 1.5 * dt; }
+      }
+      if (b.talk <= 0) { say(b, pick(LINES[b.role]), 1800); b.talk = rnd(6, 12); }
     } else if ((b.state === "act" || b.state === "down") && b.timer <= 0) {
       resume(b);
     }
@@ -410,7 +492,11 @@ function tick() {
 
   // the telly flickers like a game is on
   screenClock -= dt;
-  if (screenClock <= 0) { screenClock = rnd(0.12, 0.4); screenMat.color.setHSL(Math.random(), 0.7, 0.55); }
+  if (screenClock <= 0) {
+    screenClock = rnd(0.12, 0.4);
+    screenMat.color.setHSL(Math.random(), 0.7, 0.55);
+    for (const l of lights) l.material.color.setHSL(Math.random(), 0.9, 0.6);
+  }
 
   renderer.render(scene, camera);
 }
