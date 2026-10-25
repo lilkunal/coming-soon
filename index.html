@@ -53,7 +53,8 @@ const LINES = {
     "four years of tech support for this", "Gurugram traffic > my build time", "works on my machine",
     "is it centred yet?", "who deployed on friday", "did you clear the cache?", "that's a feature",
     "the client wants it bigger", "padding. more padding.", "19 november, they said", "ctrl+z ctrl+z ctrl+z",
-    "the résumé is 7 KB now", "one more coffee"],
+    "the résumé is 7 KB now", "one more coffee", "did I lock the door?", "what if they hate the font",
+    "was that 'ok' or 'ok.'?"],
   chill: ["what if CSS is... like, a feeling", "the cache is everywhere, man", "19 november is a state of mind",
     "ship it... tomorrow", "whoa. flexbox.", "who even needs semicolons", "the pixels are breathing"],
   gamer: ["GG, stuartboi#0702 wins", "one more match", "lag!! that was lag", "my Steam library judges me",
@@ -68,6 +69,16 @@ const LINES = {
     "thought leadership pose", "humbled to announce..."],
   runner: ["COFFEE!!", "deadline is TODAY", "can't stop, won't stop", "4th cup, who's counting"],
   courier: ["your catalogue, sir", "200 products, coming through", "mind the box", "signed, sealed, deployed"],
+  // the overthinkers
+  pacer: ["did I lock the door?", "what if the recruiter saw the 404?", "should've said 'Regards'",
+    "replaying that meeting from 2019", "what did they MEAN by 'interesting'?", "did I hit reply all??"],
+  texter: ["seen 3 hours ago", "typing... stopped typing", "should I double text?", "'k.' what does 'k.' mean",
+    "drafting reply v14", "they used a full stop. it's over."],
+  decider: ["push it? no. yes. no.", "tabs or spaces... both?", "rename the variable? again?",
+    "light mode? dark mode? ??", "let me sleep on it (x40)", "ok final answer: maybe"],
+  thinker: ["what if the domain expires", "is 7 KB too small??", "what if nobody scrolls",
+    "everything is fine (it isn't)", "but WHY did it work", "19 november... or 20th??"],
+  spiral: ["but what if...", "hmm", "okay but what if", "spiralling, brb", "what if I'm the bug"],
   hit: ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed", "HR!!"],
 };
 const ACTS = ["Wave", "Dance", "Jump", "ThumbsUp", "Yes", "No", "Sitting"];
@@ -183,7 +194,11 @@ const SPEC = {
   dj:      { clip: "Dance" },
   sleeper: { clip: "Death", once: true },
   selfie:  { clip: "Idle", every: [3, 6], fit: () => pick(["Wave", "ThumbsUp", "Yes"]) },
+  texter:  { clip: "Sitting", sad: 0.4 },
+  decider: { clip: "Idle", every: [1.8, 3], fit: () => pick(["Yes", "No"]) },   // can't settle on either
+  thinker: { clip: "Sitting", sad: 1 },
 };
+const LOOPS = { runner: "Running", courier: "Walking", pacer: "Walking", spiral: "Walking" };
 
 // what each kind of robot goes back to doing
 function resume(b) {
@@ -194,8 +209,8 @@ function resume(b) {
     play(b, b.run ? "Running" : "Walking", false);
   } else if (b.role === "player") {
     b.state = "chase"; play(b, "Running", false);
-  } else if (b.role === "runner" || b.role === "courier") {
-    b.state = "loop"; play(b, b.role === "runner" ? "Running" : "Walking", false);
+  } else if (LOOPS[b.role]) {
+    b.state = "loop"; play(b, LOOPS[b.role], false);
   } else {
     b.state = "sit"; b.heading = b.homeHeading; b.root.position.copy(b.home);
     play(b, spec.clip, !!spec.once);
@@ -268,7 +283,7 @@ function makeBot(gltf, { role, color, pos, heading = rnd(0, Math.PI * 2), team =
 }
 
 let joint = null;
-const lights = [];
+const lights = [], marks = [], rain = { cloud: null, drops: [] };
 
 new GLTFLoader().load("robot.glb", gltf => {
   for (let i = 0; i < CROWD; i++) {
@@ -326,15 +341,58 @@ new GLTFLoader().load("robot.glb", gltf => {
 
   // the coffee runner: laps, cup in hand
   const runner = makeBot(gltf, { role: "runner", color: 0xff7a3d, pos: new THREE.Vector3(-R * 0.8, 0, -R * 0.05) });
-  runner.ang = 0;
+  Object.assign(runner, { ang: 0, w: 1.7, rad: 1.8 });
   const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.24, 10), mat(0xf2efe6));
   hold(runner, cup);
 
   // the courier: one Pixel Pull block, carried back and forth for ever
   const courier = makeBot(gltf, { role: "courier", color: 0x38bdf8, pos: new THREE.Vector3(-R * 0.25, 0, R * 0.88) });
   courier.b = new THREE.Vector3(R * 0.25, 0, R * 0.88);
-  courier.toB = true;
+  Object.assign(courier, { toB: true, v: 1.5 });
   hold(courier, new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat(0xe8573f)));
+
+  /* ----- the overthinkers ----- */
+
+  // paces the same few steps, replaying everything
+  const pacer = makeBot(gltf, { role: "pacer", color: 0xbfc5cf, pos: new THREE.Vector3(R * 0.62, 0, R * 0.15) });
+  Object.assign(pacer, { b: new THREE.Vector3(R * 0.62, 0, -R * 0.3), toB: true, v: 1.1 });
+
+  // staring at a phone, waiting for a reply that is not coming
+  const texter = makeBot(gltf, { role: "texter", color: 0x9b6bff, pos: new THREE.Vector3(-R * 0.82, 0, R * 0.6), heading: 0.9 });
+  hold(texter, new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.03), mat(0x111111)));
+
+  // yes, no, yes, no, yes...
+  makeBot(gltf, { role: "decider", color: 0xf6c445, pos: new THREE.Vector3(R * 0.22, 0, -R * 0.45), heading: 0.3 });
+
+  // sits under its own rain cloud
+  const thinker = makeBot(gltf, { role: "thinker", color: 0x38bdf8, pos: new THREE.Vector3(R * 0.82, 0, R * 0.62), heading: -0.7 });
+  const cloud = new THREE.Group();
+  for (const [x, y, s] of [[0, 0, 0.45], [0.45, -0.05, 0.36], [-0.45, -0.05, 0.36], [0.2, 0.2, 0.34], [-0.22, 0.18, 0.3]]) {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(s, 12, 10), mat(0x6b7280));
+    c.position.set(x, y, 0); cloud.add(c);
+  }
+  cloud.position.set(thinker.home.x, 3.6, thinker.home.z);
+  scene.add(cloud);
+  rain.cloud = cloud;
+  const dropGeo = new THREE.BoxGeometry(0.03, 0.22, 0.03), dropMat = new THREE.MeshBasicMaterial({ color: 0x9fd3ff });
+  for (let i = 0; i < 18; i++) {
+    const d = new THREE.Mesh(dropGeo, dropMat);
+    d.position.set(cloud.position.x + rnd(-0.6, 0.6), rnd(0, 3.3), cloud.position.z + rnd(-0.35, 0.35));
+    scene.add(d); rain.drops.push(d);
+  }
+
+  // walks in circles while question marks circle its head
+  const spiral = makeBot(gltf, { role: "spiral", color: 0xec5f9a, pos: new THREE.Vector3(-R * 0.85, 0, -R * 0.5) });
+  Object.assign(spiral, { ang: 0, w: 0.9, rad: 1.2 });
+  const qc = document.createElement("canvas"); qc.width = qc.height = 64;
+  const g = qc.getContext("2d");
+  g.font = "700 54px Space Grotesk, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#FF7A3D"; g.fillText("?", 32, 34);
+  const qMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(qc) });
+  for (let i = 0; i < 3; i++) {
+    const q = new THREE.Sprite(qMat); q.scale.setScalar(0.55); scene.add(q);
+    marks.push({ q, of: spiral, phase: i * Math.PI * 2 / 3 });
+  }
 
   if (still) { controls.update(); renderer.render(scene, camera); }
 });
@@ -434,15 +492,15 @@ function tick() {
         if (spec.fitLines) { face(b, "Angry", 1); say(b, pick(LINES[spec.fitLines]), 1800); }
       }
     } else if (b.state === "loop") {
-      if (b.role === "runner") {                       // laps of a small circle, forever
-        b.ang += 1.7 * dt;
-        p.set(b.home.x + Math.cos(b.ang) * 1.8, 0, b.home.z + Math.sin(b.ang) * 1.8);
+      if (b.ang !== undefined) {                       // laps of a small circle, forever
+        b.ang += b.w * dt;
+        p.set(b.home.x + Math.cos(b.ang) * b.rad, 0, b.home.z + Math.sin(b.ang) * b.rad);
         b.heading = Math.atan2(-Math.sin(b.ang), Math.cos(b.ang));
       } else {                                         // back and forth between two spots
         const t = b.toB ? b.b : b.home;
         const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
-        if (d < 0.3) { b.toB = !b.toB; say(b, pick(LINES.courier), 1800); }
-        else { b.heading = Math.atan2(dx, dz); p.x += dx / d * 1.5 * dt; p.z += dz / d * 1.5 * dt; }
+        if (d < 0.3) { b.toB = !b.toB; say(b, pick(LINES[b.role]), 1800); }
+        else { b.heading = Math.atan2(dx, dz); p.x += dx / d * b.v * dt; p.z += dz / d * b.v * dt; }
       }
       if (b.talk <= 0) { say(b, pick(LINES[b.role]), 1800); b.talk = rnd(6, 12); }
     } else if ((b.state === "act" || b.state === "down") && b.timer <= 0) {
@@ -488,6 +546,21 @@ function tick() {
     m.scale.setScalar(1 + m.userData.age * 2.2);
     m.material.opacity = 0.55 * (1 - m.userData.age / 3);
     if (m.userData.age > 3) { scene.remove(m); m.material.dispose(); puffs.splice(i, 1); }
+  }
+
+  // question marks orbit the spiralling one; the rain cloud rains
+  for (const m of marks) {
+    const a = now / 700 + m.phase, hp = m.of.root.position;
+    m.q.position.set(hp.x + Math.cos(a) * 0.8, 3.1 + Math.sin(a * 2) * 0.15, hp.z + Math.sin(a) * 0.8);
+  }
+  if (rain.cloud) {
+    rain.cloud.position.x += Math.sin(now / 900) * 0.002;
+    for (const d of rain.drops) {
+      d.position.y -= 6 * dt;
+      if (d.position.y < 0) {
+        d.position.set(rain.cloud.position.x + rnd(-0.6, 0.6), 3.3, rain.cloud.position.z + rnd(-0.35, 0.35));
+      }
+    }
   }
 
   // the telly flickers like a game is on
