@@ -3,56 +3,245 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kunal Varshney</title>
-<meta name="description" content="Kunal Varshney builds websites, search optimisation and internal tools. This address goes live on 19 November 2026; the portfolio is at lilkunal.github.io until then.">
+<title>Coming soon</title>
 <meta name="robots" content="noindex">
-<link rel="canonical" href="https://lilkunal.github.io/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FF7A3D'/%3E%3Cstop offset='1' stop-color='%23E02F6B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Crect x='8' y='14' width='18' height='18' rx='3' opacity='.6'/%3E%3Crect x='36' y='30' width='52' height='52' rx='8'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root { --bg:#15161a; --ink:#eceef1; --soft:#8f959d; --line:#2d313a; --o:#FF7A3D; --p:#E02F6B; color-scheme:dark; }
-@media (prefers-color-scheme: light) { :root { --bg:#f6f6f4; --ink:#15161a; --soft:#5c636e; --line:#dcdde0; color-scheme:light; } }
 * { box-sizing:border-box; margin:0; }
-body { min-height:100svh; display:grid; place-items:center; padding:24px; background:var(--bg); color:var(--ink);
-  font-family:"DM Sans",system-ui,sans-serif; }
-main { max-width:34rem; }
-.mark { width:72px; height:72px; display:block; }
-.mark .s { animation:pull 2.8s cubic-bezier(.25,1.2,.4,1) infinite; }
-.mark .s2 { animation-delay:.14s } .mark .s3 { animation-delay:.28s }
-@keyframes pull { 0%,8% { transform:translate(-14px,-14px) scale(.55); opacity:0 } 38%,100% { transform:none } }
-@media (prefers-reduced-motion: reduce) { .mark .s { animation:none } }
-h1 { font-family:"Space Grotesk",sans-serif; font-size:clamp(2rem,7vw,3rem); letter-spacing:-.02em; line-height:1.05; margin-top:28px; }
-.role { color:var(--soft); margin-top:8px; }
-.when { font-family:"IBM Plex Mono",monospace; font-size:.85rem; margin-top:36px; padding-top:20px; border-top:1px solid var(--line); color:var(--soft); }
-.when b { color:var(--ink); font-weight:500; }
-a.go { display:inline-block; margin-top:22px; padding:12px 20px; border-radius:10px; color:#fff; text-decoration:none; font-weight:500;
-  background:linear-gradient(120deg,var(--o),var(--p)); }
-a.go:focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
-.mail { display:block; margin-top:18px; font-family:"IBM Plex Mono",monospace; font-size:.85rem; color:var(--soft); }
+html, body { height:100%; background:#15161a; overflow:hidden; }
+canvas { display:block; position:fixed; inset:0; }
+h1 { position:fixed; top:9vh; left:0; right:0; text-align:center; z-index:2; pointer-events:none;
+  font-family:"Space Grotesk",system-ui,sans-serif; font-size:clamp(2.6rem,11vw,7rem); letter-spacing:-.03em;
+  background:linear-gradient(120deg,#FF7A3D,#E02F6B); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.say { position:fixed; z-index:3; pointer-events:none; white-space:nowrap; translate:-50% -100%;
+  font:500 12px "IBM Plex Mono",monospace; background:#eceef1; color:#15161a; padding:5px 8px; border-radius:7px; }
+.say::after { content:""; position:absolute; left:50%; bottom:-5px; translate:-50% 0;
+  border:5px solid transparent; border-bottom:0; border-top-color:#eceef1; }
 </style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+} }
+</script>
 </head>
 <body>
-<main>
-  <svg class="mark" viewBox="0 0 96 96" role="img" aria-label="Pixel Pull mark">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7A3D"/><stop offset="1" stop-color="#E02F6B"/></linearGradient></defs>
-    <g fill="url(#g)">
-      <rect class="s"    x="6"  y="10" width="8"  height="8"  rx="1.5" opacity=".32"/>
-      <rect class="s s2" x="18" y="20" width="12" height="12" rx="2"   opacity=".55"/>
-      <rect class="s s3" x="31" y="33" width="15" height="15" rx="2.5" opacity=".8"/>
-      <rect x="50" y="28" width="40" height="40" rx="6"/>
-    </g>
-  </svg>
-  <h1>Kunal Varshney</h1>
-  <p class="role">Websites, search optimisation and internal tools.</p>
-  <p class="when">This address opens on <b>19 November 2026</b><span id="left"></span>. The work is already live.</p>
-  <a class="go" href="https://lilkunal.github.io/">See the portfolio &rarr;</a>
-  <span class="mail">kunalvrshn@gmail.com</span>
-</main>
-<script>
-  var d = Math.ceil((new Date("2026-11-19T00:00:00+05:30") - Date.now()) / 864e5);
-  if (d > 0) document.getElementById("left").textContent = " · " + d + (d === 1 ? " day" : " days") + " to go";
+<h1>Coming soon</h1>
+<script type="module">
+// Robot: "RobotExpressive" by Tomás Laulhé (CC0), from the three.js examples.
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
+
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const COUNT = innerWidth < 700 ? 12 : 26;
+const R = innerWidth < 700 ? 11 : 20;            // how far they wander
+const COLORS = [0xff7a3d, 0xe02f6b, 0x4f8cff, 0x2fbf71, 0x9b6bff, 0xf6c445, 0xec5f9a, 0x38bdf8];
+const LINES = ["almost done", "who moved my div?", "works on my machine", "one more coffee", "is it centred yet?",
+  "ship it", "ctrl+z ctrl+z ctrl+z", "the client wants it bigger", "it was fine yesterday", "lunch?",
+  "who deployed on friday", "404: keys not found", "padding. more padding.", "19 november, they said",
+  "I am the senior dev now", "did you clear the cache?", "that's a feature", "rm -rf? sure"];
+const HIT = ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed"];
+const ACTS = ["Wave", "Dance", "Jump", "ThumbsUp", "Yes", "No", "Sitting"];
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x15161a);
+scene.fog = new THREE.Fog(0x15161a, 40, 80);
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3d46, 2.2));
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.position.set(12, 30, 18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30 });
+scene.add(sun);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(60, 64), new THREE.MeshStandardMaterial({ color: 0x23262d }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+function fit() {
+  camera.aspect = innerWidth / innerHeight;
+  camera.position.set(0, R * 0.95, R * 2.1);
+  camera.lookAt(0, 0, -R * 0.15);
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+fit();
+addEventListener("resize", fit);
+
+const crew = [];
+
+function play(b, name, once, fade = 0.25) {
+  const a = b.acts[name];
+  a.reset();
+  a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat);
+  a.clampWhenFinished = once;
+  a.fadeIn(fade).play();
+  if (b.cur && b.cur !== a) b.cur.fadeOut(fade);
+  b.cur = a;
+}
+
+function say(b, text, ms = 2200) {
+  b.bubble.textContent = text;
+  b.bubble.hidden = false;
+  b.sayUntil = performance.now() + ms;
+}
+
+function face(b, name, v) {
+  if (b.head) b.head.morphTargetInfluences[b.head.morphTargetDictionary[name]] = v;
+}
+
+function walk(b) {
+  b.state = "walk";
+  b.run = Math.random() < 0.25;
+  b.heading += rnd(-1.4, 1.4);
+  b.timer = rnd(2, 6);
+  face(b, "Surprised", 0); face(b, "Angry", 0); face(b, "Sad", 0);
+  play(b, b.run ? "Running" : "Walking", false);
+}
+
+function act(b) {
+  b.state = "act";
+  const name = pick(ACTS);
+  const looped = name === "Dance" || name === "Sitting";
+  play(b, name, !looped);
+  b.timer = looped ? rnd(2.5, 4.5) : 99;
+  if (Math.random() < 0.6) say(b, pick(LINES));
+}
+
+function knockDown(b) {
+  if (b.state === "down") return;
+  b.state = "down";
+  b.timer = rnd(2.2, 3.2);
+  face(b, "Surprised", 1);
+  play(b, "Death", true, 0.15);
+  say(b, pick(HIT), 1600);
+}
+
+function punch(a, b) {
+  a.state = "act";
+  a.timer = 99;
+  a.heading = Math.atan2(b.root.position.x - a.root.position.x, b.root.position.z - a.root.position.z);
+  face(a, "Angry", 1);
+  play(a, "Punch", true, 0.1);
+  setTimeout(() => knockDown(b), 380);
+}
+
+new GLTFLoader().load("robot.glb", gltf => {
+  for (let i = 0; i < COUNT; i++) {
+    const root = SkeletonUtils.clone(gltf.scene);
+    const tint = new THREE.Color(pick(COLORS));
+    let head = null;
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.material = o.material.clone();
+      if (o.material.name === "Main") o.material.color = tint;
+      if (o.morphTargetDictionary && "Surprised" in o.morphTargetDictionary) head = o;
+    });
+    const s = rnd(0.42, 0.58);
+    root.scale.setScalar(s);
+    const ang = rnd(0, Math.PI * 2), rad = Math.sqrt(Math.random()) * R;
+    root.position.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
+    scene.add(root);
+
+    const mixer = new THREE.AnimationMixer(root);
+    const acts = {};
+    for (const clip of gltf.animations) acts[clip.name] = mixer.clipAction(clip);
+    const bubble = document.createElement("div");
+    bubble.className = "say";
+    bubble.hidden = true;
+    document.body.appendChild(bubble);
+
+    const b = { root, mixer, acts, head, bubble, cur: null, heading: rnd(0, Math.PI * 2),
+      state: "", timer: 0, run: false, sayUntil: 0, size: s, cooldown: rnd(0, 3) };
+    root.userData.bot = b;
+    mixer.addEventListener("finished", e => {
+      if (e.action !== b.cur) return;
+      if (b.state === "act") walk(b);
+    });
+    crew.push(b);
+    if (still) play(b, "Idle", false); else walk(b);
+    mixer.update(rnd(0, 2));
+  }
+  if (still) renderer.render(scene, camera);
+});
+
+// Click a robot and it falls over. Obviously.
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+renderer.domElement.addEventListener("pointerdown", e => {
+  ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(crew.map(b => b.root), true)[0];
+  if (!hit) return;
+  let o = hit.object;
+  while (o && !o.userData.bot) o = o.parent;
+  if (o) knockDown(o.userData.bot);
+});
+
+const clock = new THREE.Clock();
+const tmp = new THREE.Vector3();
+function tick() {
+  requestAnimationFrame(tick);
+  if (document.hidden) { clock.getDelta(); return; }
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = performance.now();
+
+  for (const b of crew) {
+    b.timer -= dt;
+    b.cooldown -= dt;
+    const p = b.root.position;
+    if (b.state === "walk") {
+      const v = (b.run ? 4.2 : 1.6) * b.size * 2;
+      if (Math.hypot(p.x, p.z) > R) b.heading = Math.atan2(-p.x, -p.z) + rnd(-0.6, 0.6);  // back to the middle
+      p.x += Math.sin(b.heading) * v * dt;
+      p.z += Math.cos(b.heading) * v * dt;
+      if (b.timer <= 0) Math.random() < 0.55 ? act(b) : walk(b);
+    } else if ((b.state === "act" || b.state === "down") && b.timer <= 0) {
+      walk(b);
+    }
+    // turn smoothly toward the heading, the short way round
+    const d = Math.atan2(Math.sin(b.heading - b.root.rotation.y), Math.cos(b.heading - b.root.rotation.y));
+    b.root.rotation.y += d * Math.min(1, dt * 8);
+    b.mixer.update(dt);
+
+    if (!b.bubble.hidden) {
+      if (now > b.sayUntil) b.bubble.hidden = true;
+      else {
+        tmp.set(p.x, b.size * 5.4, p.z).project(camera);
+        b.bubble.style.left = (tmp.x + 1) / 2 * innerWidth + "px";
+        b.bubble.style.top = (1 - tmp.y) / 2 * innerHeight + "px";
+      }
+    }
+  }
+
+  // Bumping into each other: usually a polite swerve, sometimes a punch.
+  for (let i = 0; i < crew.length; i++) for (let j = i + 1; j < crew.length; j++) {
+    const a = crew[i], b = crew[j];
+    if (a.state !== "walk" || b.state !== "walk") continue;
+    const dx = b.root.position.x - a.root.position.x, dz = b.root.position.z - a.root.position.z;
+    if (dx * dx + dz * dz > 2.2) continue;
+    if (a.cooldown <= 0 && Math.random() < 0.3) { punch(a, b); a.cooldown = 8; }
+    else { a.heading += 1.6; b.heading -= 1.6; }
+  }
+
+  renderer.render(scene, camera);
+}
+if (!still) tick();
 </script>
 </body>
 </html>
