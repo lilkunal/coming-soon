@@ -40,7 +40,7 @@ import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const small = Math.min(innerWidth, innerHeight) < 700;
-const CROWD = small ? 10 : 22;
+const CROWD = small ? 4 : 10;
 const PLAYERS = small ? 4 : 6;
 const R = small ? 12 : 20;                       // how far the crowd wanders
 const PL = R * 0.5, PW = R * 0.3, GW = PW * 0.45; // pitch half-length, half-width, goal half-width
@@ -98,14 +98,14 @@ scene.background = new THREE.Color(0x15161a);
 scene.fog = new THREE.Fog(0x15161a, R * 2.4, R * 4.5);
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
 const back = Math.max(1, 0.85 / camera.aspect);   // tall phone screens need the camera further out
-camera.position.set(0, R * 0.9, R * 1.95).multiplyScalar(back);
+camera.position.set(0, R * 0.62, R * 1.85).multiplyScalar(back);   // low, so you see faces, not head-tops
 scene.fog.near *= back; scene.fog.far *= back;
 
 // 360: drag or swipe to spin, pinch or scroll to zoom, it drifts round on its own.
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 0.8, 0);
+controls.target.set(0, 1.2, 0);
 Object.assign(controls, { enableDamping: true, enablePan: false, autoRotate: !still, autoRotateSpeed: 0.5,
-  minDistance: R * 0.7, maxDistance: R * 3 * back, maxPolarAngle: 1.38 });
+  minDistance: R * 0.7, maxDistance: R * 3 * back, minPolarAngle: 0.95, maxPolarAngle: 1.42 });
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3d46, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -517,6 +517,21 @@ function tick() {
       b.bubble.style.left = (tmp.x + 1) / 2 * innerWidth + "px";
       b.bubble.style.top = (1 - tmp.y) / 2 * innerHeight + "px";
     }
+  }
+
+  // nobody stands inside anybody: moving robots get pushed apart, the ones with a fixed spot hold their ground
+  const MIN = 1.5;
+  for (let i = 0; i < bots.length; i++) for (let j = i + 1; j < bots.length; j++) {
+    const a = bots[i], b = bots[j], pa = a.root.position, pb = b.root.position;
+    let dx = pb.x - pa.x, dz = pb.z - pa.z;
+    const d = Math.hypot(dx, dz);
+    if (d >= MIN) continue;
+    if (d < 1e-3) { dx = 1; dz = 0; } else { dx /= d; dz /= d; }
+    const ma = !SPEC[a.role], mb = !SPEC[b.role];
+    if (!ma && !mb) continue;
+    const push = MIN - Math.max(d, 1e-3), sa = ma && mb ? 0.5 : ma ? 1 : 0, sb = ma && mb ? 0.5 : mb ? 1 : 0;
+    pa.x -= dx * push * sa; pa.z -= dz * push * sa;
+    pb.x += dx * push * sb; pb.z += dz * push * sb;
   }
 
   // the crowd bumping into each other: usually a polite swerve, sometimes a punch
