@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Coming soon</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FF7A3D'/%3E%3Cstop offset='1' stop-color='%23E02F6B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Crect x='8' y='14' width='18' height='18' rx='3' opacity='.6'/%3E%3Crect x='36' y='30' width='52' height='52' rx='8'/%3E%3C/g%3E%3C/svg%3E">
@@ -11,9 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 * { box-sizing:border-box; margin:0; }
-html, body { height:100%; background:#15161a; overflow:hidden; }
-canvas { display:block; position:fixed; inset:0; }
-h1 { position:fixed; top:9vh; left:0; right:0; text-align:center; z-index:2; pointer-events:none;
+html, body { height:100%; background:#15161a; overflow:hidden; overscroll-behavior:none; }
+canvas { display:block; position:fixed; inset:0; touch-action:none; cursor:grab; }
+canvas:active { cursor:grabbing; }
+h1 { position:fixed; top:calc(8vh + env(safe-area-inset-top, 0px)); left:0; right:0; text-align:center; z-index:2; pointer-events:none;
   font-family:"Space Grotesk",system-ui,sans-serif; font-size:clamp(2.6rem,11vw,7rem); letter-spacing:-.03em;
   background:linear-gradient(120deg,#FF7A3D,#E02F6B); -webkit-background-clip:text; background-clip:text; color:transparent; }
 .say { position:fixed; z-index:3; pointer-events:none; white-space:nowrap; translate:-50% -100%;
@@ -34,22 +35,38 @@ h1 { position:fixed; top:9vh; left:0; right:0; text-align:center; z-index:2; poi
 // Robot: "RobotExpressive" by Tomás Laulhé (CC0), from the three.js examples.
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const COUNT = innerWidth < 700 ? 12 : 26;
-const R = innerWidth < 700 ? 11 : 20;            // how far they wander
-const COLORS = [0xff7a3d, 0xe02f6b, 0x4f8cff, 0x2fbf71, 0x9b6bff, 0xf6c445, 0xec5f9a, 0x38bdf8];
-const LINES = ["almost done", "who moved my div?", "works on my machine", "one more coffee", "is it centred yet?",
-  "ship it", "ctrl+z ctrl+z ctrl+z", "the client wants it bigger", "it was fine yesterday", "lunch?",
-  "who deployed on friday", "404: keys not found", "padding. more padding.", "19 november, they said",
-  "I am the senior dev now", "did you clear the cache?", "that's a feature", "rm -rf? sure"];
-const HIT = ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed"];
+const small = Math.min(innerWidth, innerHeight) < 700;
+const CROWD = small ? 10 : 22;
+const PLAYERS = small ? 4 : 6;
+const R = small ? 12 : 20;                       // how far the crowd wanders
+const PL = R * 0.5, PW = R * 0.3, GW = PW * 0.45; // pitch half-length, half-width, goal half-width
+const COLORS = [0xe02f6b, 0x2fbf71, 0x9b6bff, 0xf6c445, 0xec5f9a, 0x38bdf8, 0xbfc5cf];
+const TEAM = [0xff7a3d, 0x4f8cff];
+
+const LINES = {
+  crowd: ["started on a Terminator 2 console", "I deleted the dragon. still sad.", "2,217 KB of JS? not today",
+    "the ERP knows who owes", "200 products, 8 currencies, 0 sleep", "have you tried restarting it?",
+    "four years of tech support for this", "Gurugram traffic > my build time", "works on my machine",
+    "is it centred yet?", "who deployed on friday", "did you clear the cache?", "that's a feature",
+    "the client wants it bigger", "padding. more padding.", "19 november, they said", "ctrl+z ctrl+z ctrl+z",
+    "the résumé is 7 KB now", "one more coffee"],
+  chill: ["what if CSS is... like, a feeling", "the cache is everywhere, man", "19 november is a state of mind",
+    "ship it... tomorrow", "whoa. flexbox.", "who even needs semicolons", "the pixels are breathing"],
+  gamer: ["GG, stuartboi#0702 wins", "one more match", "lag!! that was lag", "my Steam library judges me",
+    "T2 console, never forget", "noob detected", "brb, respawning"],
+  player: ["mine!", "pass!!", "offside!", "VAR!!", "my ball", "nutmeg!"],
+  hit: ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed", "HR!!"],
+};
 const ACTS = ["Wave", "Dance", "Jump", "ThumbsUp", "Yes", "No", "Sitting"];
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
+/* ---------- scene ---------- */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -58,32 +75,77 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x15161a);
-scene.fog = new THREE.Fog(0x15161a, 40, 80);
-const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+scene.fog = new THREE.Fog(0x15161a, R * 2.4, R * 4.5);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
+const back = Math.max(1, 0.85 / camera.aspect);   // tall phone screens need the camera further out
+camera.position.set(0, R * 0.9, R * 1.95).multiplyScalar(back);
+scene.fog.near *= back; scene.fog.far *= back;
+
+// 360: drag or swipe to spin, pinch or scroll to zoom, it drifts round on its own.
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.8, 0);
+Object.assign(controls, { enableDamping: true, enablePan: false, autoRotate: !still, autoRotateSpeed: 0.5,
+  minDistance: R * 0.7, maxDistance: R * 3 * back, maxPolarAngle: 1.38 });
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3d46, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
 sun.position.set(12, 30, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
-Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30 });
+Object.assign(sun.shadow.camera, { left: -R * 1.5, right: R * 1.5, top: R * 1.5, bottom: -R * 1.5 });
 scene.add(sun);
-const floor = new THREE.Mesh(new THREE.CircleGeometry(60, 64), new THREE.MeshStandardMaterial({ color: 0x23262d }));
+
+const mat = c => new THREE.MeshStandardMaterial({ color: c });
+const floor = new THREE.Mesh(new THREE.CircleGeometry(R * 5, 64), mat(0x23262d));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
+// the pitch
+const pitch = new THREE.Mesh(new THREE.PlaneGeometry(PL * 2, PW * 2), mat(0x2c4a36));
+pitch.rotation.x = -Math.PI / 2; pitch.position.y = 0.01; pitch.receiveShadow = true;
+scene.add(pitch);
+const white = new THREE.MeshBasicMaterial({ color: 0xdfe6dc });
+const half = new THREE.Mesh(new THREE.PlaneGeometry(0.08, PW * 2), white);
+half.rotation.x = -Math.PI / 2; half.position.y = 0.02; scene.add(half);
+const ring = new THREE.Mesh(new THREE.RingGeometry(PW * 0.38, PW * 0.38 + 0.08, 48), white);
+ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; scene.add(ring);
+for (const sx of [-1, 1]) {
+  const g = new THREE.Group();
+  const post = new THREE.BoxGeometry(0.1, 1.3, 0.1);
+  for (const sz of [-1, 1]) { const p = new THREE.Mesh(post, white); p.position.set(0, 0.65, sz * GW); g.add(p); }
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, GW * 2 + 0.1), white); bar.position.y = 1.3; g.add(bar);
+  g.position.x = sx * PL; scene.add(g);
+}
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), mat(0xf4f4f4));
+ball.castShadow = true; ball.position.set(0, 0.3, 0); scene.add(ball);
+const ballV = new THREE.Vector2();
+let goalPause = 0;
+
+// the gamer's telly
+const gamerAt = new THREE.Vector3(R * 0.36, 0, R * 0.62);
+const tv = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 0.15), mat(0x0d0e11));
+tv.position.set(gamerAt.x, 1.1, gamerAt.z - 2.4); tv.castShadow = true; scene.add(tv);
+const screenMat = new THREE.MeshBasicMaterial({ color: 0x4f8cff });
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1), screenMat);
+screen.position.set(0, 0, 0.08); tv.add(screen);
+const stand = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.5, 0.15), mat(0x0d0e11));
+stand.position.set(gamerAt.x, 0.25, gamerAt.z - 2.4); scene.add(stand);
+
+// the chill corner
+const chillAt = new THREE.Vector3(-R * 0.36, 0, R * 0.62);
+const puffGeo = new THREE.SphereGeometry(0.12, 10, 8);
+const puffs = [];
+
 function fit() {
   camera.aspect = innerWidth / innerHeight;
-  camera.position.set(0, R * 0.95, R * 2.1);
-  camera.lookAt(0, 0, -R * 0.15);
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 }
-fit();
 addEventListener("resize", fit);
 
-const crew = [];
+/* ---------- robots ---------- */
+const bots = [];
 
 function play(b, name, once, fade = 0.25) {
   const a = b.acts[name];
@@ -94,150 +156,261 @@ function play(b, name, once, fade = 0.25) {
   if (b.cur && b.cur !== a) b.cur.fadeOut(fade);
   b.cur = a;
 }
-
-function say(b, text, ms = 2200) {
+function say(b, text, ms = 2300) {
   b.bubble.textContent = text;
   b.bubble.hidden = false;
   b.sayUntil = performance.now() + ms;
 }
-
 function face(b, name, v) {
   if (b.head) b.head.morphTargetInfluences[b.head.morphTargetDictionary[name]] = v;
 }
+function calm(b) { face(b, "Surprised", 0); face(b, "Angry", 0); face(b, "Sad", 0); }
 
-function walk(b) {
-  b.state = "walk";
-  b.run = Math.random() < 0.25;
-  b.heading += rnd(-1.4, 1.4);
-  b.timer = rnd(2, 6);
-  face(b, "Surprised", 0); face(b, "Angry", 0); face(b, "Sad", 0);
-  play(b, b.run ? "Running" : "Walking", false);
+// what each kind of robot goes back to doing
+function resume(b) {
+  calm(b);
+  if (b.role === "crowd") {
+    b.state = "walk"; b.run = Math.random() < 0.25; b.heading += rnd(-1.4, 1.4); b.timer = rnd(2, 6);
+    play(b, b.run ? "Running" : "Walking", false);
+  } else if (b.role === "player") {
+    b.state = "chase"; play(b, "Running", false);
+  } else {
+    b.state = "sit"; b.heading = b.homeHeading; b.root.position.copy(b.home);
+    play(b, "Sitting", false);
+    if (b.role === "chill") face(b, "Sad", 0.55);   // the heavy-lidded look
+  }
 }
-
-function act(b) {
+function act(b, name = pick(ACTS), ms) {
   b.state = "act";
-  const name = pick(ACTS);
   const looped = name === "Dance" || name === "Sitting";
   play(b, name, !looped);
-  b.timer = looped ? rnd(2.5, 4.5) : 99;
-  if (Math.random() < 0.6) say(b, pick(LINES));
+  b.timer = ms || (looped ? rnd(2.5, 4.5) : 99);
 }
-
 function knockDown(b) {
   if (b.state === "down") return;
-  b.state = "down";
-  b.timer = rnd(2.2, 3.2);
+  b.state = "down"; b.timer = rnd(2.2, 3.2);
   face(b, "Surprised", 1);
   play(b, "Death", true, 0.15);
-  say(b, pick(HIT), 1600);
+  say(b, pick(LINES.hit), 1600);
 }
-
 function punch(a, b) {
-  a.state = "act";
-  a.timer = 99;
+  a.state = "act"; a.timer = 99;
   a.heading = Math.atan2(b.root.position.x - a.root.position.x, b.root.position.z - a.root.position.z);
   face(a, "Angry", 1);
   play(a, "Punch", true, 0.1);
   setTimeout(() => knockDown(b), 380);
 }
 
+// stick a prop in the right hand, sized in world units whatever the bone's own scale is
+function hold(b, prop) {
+  const hand = b.root.getObjectByName("HandR") || b.root.getObjectByName("Hand.R");
+  if (!hand) return;
+  b.root.updateMatrixWorld(true);
+  prop.scale.setScalar(1 / hand.getWorldScale(new THREE.Vector3()).x);
+  hand.add(prop);
+  return prop;
+}
+
+function makeBot(gltf, { role, color, pos, heading = rnd(0, Math.PI * 2), team = -1 }) {
+  const root = SkeletonUtils.clone(gltf.scene);
+  let head = null;
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.material = o.material.clone();
+    if (o.material.name === "Main") o.material.color = new THREE.Color(color);
+    if (o.morphTargetDictionary && "Surprised" in o.morphTargetDictionary) head = o;
+  });
+  const size = rnd(0.45, 0.56);
+  root.scale.setScalar(size);
+  root.position.copy(pos);
+  root.rotation.y = heading;
+  scene.add(root);
+
+  const mixer = new THREE.AnimationMixer(root);
+  const acts = {};
+  for (const clip of gltf.animations) acts[clip.name] = mixer.clipAction(clip);
+  const bubble = document.createElement("div");
+  bubble.className = "say"; bubble.hidden = true;
+  document.body.appendChild(bubble);
+
+  const b = { root, mixer, acts, head, bubble, role, team, size, cur: null, heading, homeHeading: heading,
+    home: pos.clone(), state: "", timer: 0, run: false, sayUntil: 0, cooldown: rnd(0, 3), talk: rnd(1, 6), kick: 0 };
+  root.userData.bot = b;
+  mixer.addEventListener("finished", e => { if (e.action === b.cur && b.state === "act") resume(b); });
+  bots.push(b);
+  resume(b);
+  mixer.update(rnd(0, 2));
+  return b;
+}
+
+let joint = null;
+
 new GLTFLoader().load("robot.glb", gltf => {
-  for (let i = 0; i < COUNT; i++) {
-    const root = SkeletonUtils.clone(gltf.scene);
-    const tint = new THREE.Color(pick(COLORS));
-    let head = null;
-    root.traverse(o => {
-      if (!o.isMesh) return;
-      o.castShadow = true;
-      o.material = o.material.clone();
-      if (o.material.name === "Main") o.material.color = tint;
-      if (o.morphTargetDictionary && "Surprised" in o.morphTargetDictionary) head = o;
-    });
-    const s = rnd(0.42, 0.58);
-    root.scale.setScalar(s);
-    const ang = rnd(0, Math.PI * 2), rad = Math.sqrt(Math.random()) * R;
-    root.position.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
-    scene.add(root);
-
-    const mixer = new THREE.AnimationMixer(root);
-    const acts = {};
-    for (const clip of gltf.animations) acts[clip.name] = mixer.clipAction(clip);
-    const bubble = document.createElement("div");
-    bubble.className = "say";
-    bubble.hidden = true;
-    document.body.appendChild(bubble);
-
-    const b = { root, mixer, acts, head, bubble, cur: null, heading: rnd(0, Math.PI * 2),
-      state: "", timer: 0, run: false, sayUntil: 0, size: s, cooldown: rnd(0, 3) };
-    root.userData.bot = b;
-    mixer.addEventListener("finished", e => {
-      if (e.action !== b.cur) return;
-      if (b.state === "act") walk(b);
-    });
-    crew.push(b);
-    if (still) play(b, "Idle", false); else walk(b);
-    mixer.update(rnd(0, 2));
+  for (let i = 0; i < CROWD; i++) {
+    const a = rnd(0, Math.PI * 2), r = rnd(PW * 1.3, R);
+    makeBot(gltf, { role: "crowd", color: pick(COLORS), pos: new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r) });
   }
-  if (still) renderer.render(scene, camera);
+  for (let i = 0; i < PLAYERS; i++) {
+    const team = i % 2;
+    makeBot(gltf, { role: "player", team, color: TEAM[team],
+      pos: new THREE.Vector3((team ? 1 : -1) * rnd(1, PL * 0.8), 0, rnd(-PW, PW) * 0.8) });
+  }
+
+  // the gamer, facing the telly, controller in hand
+  const gamer = makeBot(gltf, { role: "gamer", color: 0x4f8cff, pos: gamerAt.clone(), heading: Math.PI });
+  hold(gamer, new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.24), mat(0x1b1c20)));
+
+  // the chill one, sitting alone, smoke drifting up
+  const chill = makeBot(gltf, { role: "chill", color: 0x2fbf71, pos: chillAt.clone(), heading: 0.6 });
+  const j = new THREE.Group();
+  const paper = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.42, 8), mat(0xf2efe6));
+  paper.rotation.z = Math.PI / 2; j.add(paper);
+  const ember = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff7a3d }));
+  ember.position.x = 0.22; j.add(ember);
+  hold(chill, j);
+  joint = ember;
+
+  if (still) { controls.update(); renderer.render(scene, camera); }
 });
 
-// Click a robot and it falls over. Obviously.
+/* ---------- tap a robot: it falls over. drag: it spins. ---------- */
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
-renderer.domElement.addEventListener("pointerdown", e => {
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;  // that was a drag
   ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ptr, camera);
-  const hit = ray.intersectObjects(crew.map(b => b.root), true)[0];
+  const hit = ray.intersectObjects(bots.map(b => b.root), true)[0];
   if (!hit) return;
   let o = hit.object;
   while (o && !o.userData.bot) o = o.parent;
   if (o) knockDown(o.userData.bot);
 });
 
+/* ---------- football ---------- */
+function goal(team) {
+  goalPause = 2.8;
+  ballV.set(0, 0);
+  for (const b of bots) if (b.role === "player" && b.state !== "down") {
+    if (b.team === team) { act(b, "Dance", 2.6); if (Math.random() < 0.6) say(b, "GOAL!!", 2000); }
+    else { act(b, Math.random() < 0.5 ? "No" : "Sitting", 2.6); face(b, "Sad", 1); }
+  }
+}
+function football(dt) {
+  if (goalPause > 0) {
+    goalPause -= dt;
+    if (goalPause <= 0) { ball.position.set(0, 0.3, 0); ballV.set(rnd(-1, 1), rnd(-1, 1)); }
+    return;
+  }
+  const p = ball.position;
+  p.x += ballV.x * dt; p.z += ballV.y * dt;
+  ballV.multiplyScalar(Math.max(0, 1 - 0.9 * dt));
+  ball.rotation.z -= ballV.x * dt / 0.3;
+  ball.rotation.x += ballV.y * dt / 0.3;
+  if (Math.abs(p.z) > PW - 0.3) { p.z = Math.sign(p.z) * (PW - 0.3); ballV.y *= -0.7; }
+  if (Math.abs(p.x) > PL) {
+    if (Math.abs(p.z) < GW) return goal(p.x > 0 ? 0 : 1);   // team 0 attacks +x
+    p.x = Math.sign(p.x) * PL; ballV.x *= -0.7;
+  }
+}
+function chase(b, dt) {
+  const p = b.root.position, bp = ball.position;
+  b.kick -= dt;
+  const dx = bp.x - p.x, dz = bp.z - p.z, d = Math.hypot(dx, dz);
+  if (d > 0.9) {
+    b.heading = Math.atan2(dx, dz);
+    const v = 3.1;
+    p.x += Math.sin(b.heading) * v * dt;
+    p.z += Math.cos(b.heading) * v * dt;
+    p.x = THREE.MathUtils.clamp(p.x, -PL * 1.1, PL * 1.1);
+    p.z = THREE.MathUtils.clamp(p.z, -PW * 1.1, PW * 1.1);
+  } else if (b.kick <= 0 && goalPause <= 0) {
+    const gx = b.team === 0 ? PL : -PL;
+    const k = new THREE.Vector2(gx - bp.x, rnd(-GW, GW) - bp.z).normalize().rotateAround(new THREE.Vector2(), rnd(-0.6, 0.6));
+    ballV.copy(k.multiplyScalar(rnd(5, 9)));
+    b.kick = 0.9;
+    if (Math.random() < 0.18) say(b, pick(LINES.player), 1400);
+  }
+}
+
+/* ---------- loop ---------- */
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3();
+let puffClock = 0, screenClock = 0;
 function tick() {
   requestAnimationFrame(tick);
   if (document.hidden) { clock.getDelta(); return; }
   const dt = Math.min(clock.getDelta(), 0.05);
   const now = performance.now();
+  controls.update();
+  football(dt);
 
-  for (const b of crew) {
-    b.timer -= dt;
-    b.cooldown -= dt;
+  for (const b of bots) {
+    b.timer -= dt; b.cooldown -= dt; b.talk -= dt;
     const p = b.root.position;
     if (b.state === "walk") {
       const v = (b.run ? 4.2 : 1.6) * b.size * 2;
       if (Math.hypot(p.x, p.z) > R) b.heading = Math.atan2(-p.x, -p.z) + rnd(-0.6, 0.6);  // back to the middle
       p.x += Math.sin(b.heading) * v * dt;
       p.z += Math.cos(b.heading) * v * dt;
-      if (b.timer <= 0) Math.random() < 0.55 ? act(b) : walk(b);
+      if (b.timer <= 0) {
+        if (Math.random() < 0.55) { act(b); if (Math.random() < 0.6) say(b, pick(LINES.crowd)); }
+        else resume(b);
+      }
+    } else if (b.state === "chase") {
+      chase(b, dt);
+    } else if (b.state === "sit") {
+      if (b.talk <= 0) { say(b, pick(LINES[b.role]), 2600); b.talk = rnd(5, 10); }
     } else if ((b.state === "act" || b.state === "down") && b.timer <= 0) {
-      walk(b);
+      resume(b);
     }
-    // turn smoothly toward the heading, the short way round
     const d = Math.atan2(Math.sin(b.heading - b.root.rotation.y), Math.cos(b.heading - b.root.rotation.y));
     b.root.rotation.y += d * Math.min(1, dt * 8);
     b.mixer.update(dt);
 
     if (!b.bubble.hidden) {
-      if (now > b.sayUntil) b.bubble.hidden = true;
-      else {
-        tmp.set(p.x, b.size * 5.4, p.z).project(camera);
-        b.bubble.style.left = (tmp.x + 1) / 2 * innerWidth + "px";
-        b.bubble.style.top = (1 - tmp.y) / 2 * innerHeight + "px";
-      }
+      tmp.set(p.x, b.size * 5.4, p.z).project(camera);
+      if (now > b.sayUntil || tmp.z > 1) b.bubble.hidden = now > b.sayUntil;
+      b.bubble.style.visibility = tmp.z > 1 ? "hidden" : "visible";   // behind the camera after a spin
+      b.bubble.style.left = (tmp.x + 1) / 2 * innerWidth + "px";
+      b.bubble.style.top = (1 - tmp.y) / 2 * innerHeight + "px";
     }
   }
 
-  // Bumping into each other: usually a polite swerve, sometimes a punch.
-  for (let i = 0; i < crew.length; i++) for (let j = i + 1; j < crew.length; j++) {
-    const a = crew[i], b = crew[j];
+  // the crowd bumping into each other: usually a polite swerve, sometimes a punch
+  for (let i = 0; i < bots.length; i++) for (let j = i + 1; j < bots.length; j++) {
+    const a = bots[i], b = bots[j];
     if (a.state !== "walk" || b.state !== "walk") continue;
     const dx = b.root.position.x - a.root.position.x, dz = b.root.position.z - a.root.position.z;
     if (dx * dx + dz * dz > 2.2) continue;
     if (a.cooldown <= 0 && Math.random() < 0.3) { punch(a, b); a.cooldown = 8; }
     else { a.heading += 1.6; b.heading -= 1.6; }
   }
+
+  // smoke off the joint, drifting up and fading
+  puffClock -= dt;
+  if (joint && puffClock <= 0 && puffs.length < 40) {
+    puffClock = 0.22;
+    const m = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: 0xcfd3da, transparent: true, opacity: 0.55, depthWrite: false }));
+    joint.getWorldPosition(m.position);
+    m.userData.v = new THREE.Vector3(rnd(-0.15, 0.15), rnd(0.5, 0.8), rnd(-0.15, 0.15));
+    m.userData.age = 0;
+    scene.add(m); puffs.push(m);
+  }
+  for (let i = puffs.length - 1; i >= 0; i--) {
+    const m = puffs[i];
+    m.userData.age += dt;
+    m.position.addScaledVector(m.userData.v, dt);
+    m.scale.setScalar(1 + m.userData.age * 2.2);
+    m.material.opacity = 0.55 * (1 - m.userData.age / 3);
+    if (m.userData.age > 3) { scene.remove(m); m.material.dispose(); puffs.splice(i, 1); }
+  }
+
+  // the telly flickers like a game is on
+  screenClock -= dt;
+  if (screenClock <= 0) { screenClock = rnd(0.12, 0.4); screenMat.color.setHSL(Math.random(), 0.7, 0.55); }
 
   renderer.render(scene, camera);
 }
