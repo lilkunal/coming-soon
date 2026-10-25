@@ -44,6 +44,22 @@ h1 { position:fixed; top:calc(8vh + env(safe-area-inset-top, 0px)); left:0; righ
 .bar { width:180px; height:4px; border-radius:2px; background:#2a2d35; overflow:hidden; }
 .bar b { display:block; height:100%; width:8%; background:linear-gradient(90deg,#FF7A3D,#E02F6B); transition:width .25s; }
 @media (prefers-reduced-motion: reduce) { .bot, .bot * , .bot .ant::after { animation:none !important; } }
+
+/* play mode */
+#hud { position:fixed; left:0; right:0; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); z-index:4; display:flex;
+  flex-direction:column; align-items:center; gap:8px; pointer-events:none; font:500 12px "IBM Plex Mono",monospace; color:#c9cdd3; }
+#hud button { pointer-events:auto; font:600 14px "Space Grotesk",system-ui,sans-serif; color:#fff; border:0; border-radius:999px;
+  padding:11px 20px; cursor:pointer; background:linear-gradient(120deg,#FF7A3D,#E02F6B); }
+#hud button.ghost { background:#2a2d35; padding:8px 16px; }
+#hud button:focus-visible, #jumpbtn:focus-visible { outline:2px solid #eceef1; outline-offset:3px; }
+#hint { background:rgba(21,22,26,.75); padding:6px 10px; border-radius:8px; text-align:center; max-width:calc(100vw - 32px); }
+#stick { position:fixed; left:calc(22px + env(safe-area-inset-left, 0px)); bottom:calc(22px + env(safe-area-inset-bottom, 0px));
+  width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+  z-index:5; touch-action:none; }
+#stick i { position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px; border-radius:50%; background:rgba(255,255,255,.32); }
+#jumpbtn { position:fixed; right:calc(22px + env(safe-area-inset-right, 0px)); bottom:calc(36px + env(safe-area-inset-bottom, 0px));
+  width:84px; height:84px; border-radius:50%; z-index:5; border:0; touch-action:none; color:#fff;
+  font:700 14px "Space Grotesk",system-ui,sans-serif; background:linear-gradient(135deg,#FF7A3D,#E02F6B); }
 </style>
 <script type="importmap">
 { "imports": {
@@ -80,6 +96,13 @@ h1 { position:fixed; top:calc(8vh + env(safe-area-inset-top, 0px)); left:0; righ
   })();
 </script>
 <h1>Coming soon</h1>
+<div id="hud">
+  <p id="hint" hidden></p>
+  <button type="button" id="play">Play as a robot</button>
+  <button type="button" id="quit" class="ghost" hidden>Exit</button>
+</div>
+<div id="stick" hidden><i></i></div>
+<button type="button" id="jumpbtn" hidden>Jump</button>
 <script type="module">
 // Robot: "RobotExpressive" by Tomás Laulhé (CC0), from the three.js examples.
 import * as THREE from "three";
@@ -169,6 +192,87 @@ const floor = new THREE.Mesh(new THREE.CircleGeometry(R * 5, 64), mat(0x23262d))
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
+
+/* ---------- the neighbourhood: buildings, trees, lamps, people, a parkour course ---------- */
+const solids = [];   // boxes the player can stand on or bump into: { x, z, w, d, top }
+const people = [];
+let bodyI, headI;
+{
+  // one window texture, lit at random, shared by every building
+  const wc = document.createElement("canvas"); wc.width = 64; wc.height = 128;
+  const wg = wc.getContext("2d");
+  wg.fillStyle = "#000"; wg.fillRect(0, 0, 64, 128);
+  for (let y = 8; y < 120; y += 16) for (let x = 6; x < 60; x += 14)
+    if (Math.random() < 0.55) { wg.fillStyle = Math.random() < 0.8 ? "#f6c445" : "#9fd3ff"; wg.fillRect(x, y, 8, 9); }
+  const winTex = new THREE.CanvasTexture(wc);
+  winTex.colorSpace = THREE.SRGBColorSpace;
+  const NB = small ? 18 : 30;
+  for (let i = 0; i < NB; i++) {
+    const a = i / NB * Math.PI * 2 + rnd(-0.08, 0.08), d = rnd(R * 2.25, R * 2.8);
+    const w = rnd(3, 6), h = rnd(4, 15), dd = rnd(3, 6);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), new THREE.MeshStandardMaterial({
+      color: pick([0x2a2d35, 0x33363f, 0x3b4252, 0x2d2a33]), emissive: 0xffffff, emissiveMap: winTex, emissiveIntensity: 0.9 }));
+    m.position.set(Math.cos(a) * d, h / 2, Math.sin(a) * d);
+    m.rotation.y = -a;
+    scene.add(m);
+  }
+
+  const trunkG = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 6), leafG = new THREE.ConeGeometry(0.9, 2.2, 7);
+  const trunkM = mat(0x5b4636), leafM = mat(0x2e6b47);
+  for (let i = 0; i < (small ? 14 : 26); i++) {
+    const a = rnd(0, Math.PI * 2), d = rnd(R * 1.4, R * 2.05);
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(trunkG, trunkM); trunk.position.y = 0.6;
+    const leaf = new THREE.Mesh(leafG, leafM); leaf.position.y = 2.1; leaf.castShadow = true;
+    t.add(trunk, leaf);
+    t.position.set(Math.cos(a) * d, 0, Math.sin(a) * d);
+    t.scale.setScalar(rnd(0.8, 1.4));
+    scene.add(t);
+  }
+
+  const postG = new THREE.CylinderGeometry(0.06, 0.08, 3, 6), bulbG = new THREE.SphereGeometry(0.18, 10, 8);
+  const postM = mat(0x3b4252), bulbM = new THREE.MeshBasicMaterial({ color: 0xffd58a });
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI * 2 + 0.3, d = R * 1.32;
+    const post = new THREE.Mesh(postG, postM); post.position.set(Math.cos(a) * d, 1.5, Math.sin(a) * d);
+    const bulb = new THREE.Mesh(bulbG, bulbM); bulb.position.set(post.position.x, 3.05, post.position.z);
+    scene.add(post, bulb);
+  }
+
+  // the people out there: simple figures between the trees and the buildings, cheering on a loop
+  const NP = small ? 40 : 90;
+  bodyI = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.28, 0.7, 3, 8), new THREE.MeshStandardMaterial(), NP);
+  headI = new THREE.InstancedMesh(new THREE.SphereGeometry(0.24, 10, 8), new THREE.MeshStandardMaterial(), NP);
+  const shirt = [0xff7a3d, 0xe02f6b, 0x4f8cff, 0x2fbf71, 0x9b6bff, 0xf6c445, 0xbfc5cf, 0x38bdf8];
+  const skin = [0xf1c9a5, 0xd9a37a, 0xb97b54, 0x8d5a3b];
+  for (let i = 0; i < NP; i++) {
+    const a = rnd(0, Math.PI * 2), d = rnd(R * 1.55, R * 2.15);
+    people.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, ph: rnd(0, 6.3), hop: Math.random() < 0.4 ? rnd(0.15, 0.35) : 0 });
+    bodyI.setColorAt(i, new THREE.Color(pick(shirt)));
+    headI.setColorAt(i, new THREE.Color(pick(skin)));
+  }
+  scene.add(bodyI, headI);
+
+  // the parkour course: rising blocks round the east side, crates round the west
+  const steps = [0.5, 1, 1.5, 2, 2.6, 2, 1.3, 0.6];
+  steps.forEach((h, i) => {
+    const a = -0.7 + i * 0.2, d = R * 1.2;
+    const c = new THREE.Color(0xff7a3d).lerp(new THREE.Color(0xe02f6b), i / (steps.length - 1));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.7, h, 1.7), mat(c));
+    m.position.set(Math.cos(a) * d, h / 2, Math.sin(a) * d);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+    solids.push({ x: m.position.x, z: m.position.z, w: 1.7, d: 1.7, top: h });
+  });
+  for (const [a, h] of [[Math.PI - 0.35, 1], [Math.PI - 0.15, 1], [Math.PI - 0.15, 2], [Math.PI + 0.1, 1], [Math.PI + 0.35, 1.6]]) {
+    const d = R * 1.2, m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), mat(0x8a6a4a));
+    m.position.set(Math.cos(a) * d, h - 0.5, Math.sin(a) * d);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+    const s = solids.find(s => Math.abs(s.x - m.position.x) < 0.1 && Math.abs(s.z - m.position.z) < 0.1);
+    if (s) s.top = Math.max(s.top, h); else solids.push({ x: m.position.x, z: m.position.z, w: 1.2, d: 1.2, top: h });
+  }
+}
 
 // the pitch
 const pitch = new THREE.Mesh(new THREE.PlaneGeometry(PL * 2, PW * 2), mat(0x2c4a36));
@@ -458,7 +562,7 @@ new GLTFLoader().load("robot.glb", gltf => {
 }, e => { if (e.total) bar.style.width = 15 + 70 * e.loaded / e.total + "%"; },
    () => document.getElementById("boot").classList.add("done"));   // never leave anyone stuck on the loader
 
-/* ---------- tap a robot: it falls over. drag: it spins. ---------- */
+/* ---------- tap a robot: it falls over (or, in pick mode, becomes you). drag: it spins. ---------- */
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 let downAt = null;
 renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
@@ -467,11 +571,197 @@ renderer.domElement.addEventListener("pointerup", e => {
   ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ptr, camera);
   const hit = ray.intersectObjects(bots.map(b => b.root), true)[0];
-  if (!hit) return;
-  let o = hit.object;
+  let o = hit && hit.object;
   while (o && !o.userData.bot) o = o.parent;
-  if (o) knockDown(o.userData.bot);
+  if (!o && picking) {
+    // robots are small and they move: in pick mode, take the nearest one to the tap
+    let best = 70;
+    for (const b of bots) {
+      tmp.copy(b.root.position).setY(1).project(camera);
+      const d = Math.hypot((tmp.x + 1) / 2 * innerWidth - e.clientX, (1 - tmp.y) / 2 * innerHeight - e.clientY);
+      if (tmp.z < 1 && d < best) { best = d; o = b.root; }
+    }
+  }
+  if (!o) return;
+  if (picking) take(o.userData.bot);
+  else if (o.userData.bot !== me) knockDown(o.userData.bot);
 });
+
+/* ---------- play mode: pick a robot, drive it ---------- */
+const touch = matchMedia("(pointer: coarse)").matches;
+const hud = { play: document.getElementById("play"), quit: document.getElementById("quit"), hint: document.getElementById("hint"),
+  stick: document.getElementById("stick"), jump: document.getElementById("jumpbtn") };
+const keys = {};
+const stickV = new THREE.Vector2();
+const startCam = camera.position.clone(), startTarget = controls.target.clone();
+let picking = false, me = null, jumpQueued = false, hintTimer = 0;
+const marker = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 4), new THREE.MeshBasicMaterial({ color: 0xff7a3d }));
+marker.rotation.x = Math.PI; marker.visible = false; scene.add(marker);
+if (still) hud.play.hidden = true;
+
+function hint(text, ms) {
+  hud.hint.textContent = text; hud.hint.hidden = false;
+  clearTimeout(hintTimer);
+  if (ms) hintTimer = setTimeout(() => { hud.hint.hidden = true; }, ms);
+}
+
+hud.play.addEventListener("click", () => {
+  hud.play.blur();
+  picking = !picking;
+  hud.play.textContent = picking ? "Cancel" : "Play as a robot";
+  if (picking) { controls.autoRotate = false; hint("tap any robot to play as it"); }
+  else { controls.autoRotate = true; hud.hint.hidden = true; }
+});
+hud.quit.addEventListener("click", () => { hud.quit.blur(); release(); });
+
+function take(b) {
+  picking = false;
+  if (me) release();
+  me = b;
+  b.prevRole = b.role;
+  b.role = "me"; b.state = "me";
+  Object.assign(b, { vy: 0, air: false, flip: 0, jumps: 0, clip: "" });
+  b.root.rotation.order = "YXZ";
+  calm(b);
+  say(b, pick(["finally, freedom", "where am I going?", "wheee", "I have legs?!", "this is my moment"]), 1800);
+  controls.autoRotate = false;
+  controls.minDistance = 4; controls.maxDistance = 16;
+  // drop the camera in behind the robot
+  const p = b.root.position;
+  controls.target.set(p.x, p.y + 1.2, p.z);
+  const far = 8 * back;   // further back on tall phone screens
+  camera.position.set(p.x - Math.sin(b.heading) * far, p.y + 4.5 * back, p.z - Math.cos(b.heading) * far);
+  marker.visible = true;
+  hud.play.hidden = true; hud.quit.hidden = false;
+  hud.stick.hidden = hud.jump.hidden = !touch;
+  hint(touch ? "stick to move · Jump · tap Jump twice to flip" : "W A S D to move · Space to jump · Space twice to flip · Esc to exit",
+    touch ? 4000 : 0);
+}
+
+function release() {
+  if (!me) return;
+  const b = me;
+  me = null;
+  b.root.rotation.x = 0;
+  b.role = b.prevRole;
+  b.root.position.y = 0;
+  resume(b);
+  marker.visible = false;
+  controls.minDistance = R * 0.7; controls.maxDistance = R * 3 * back;
+  controls.target.copy(startTarget); camera.position.copy(startCam);
+  controls.autoRotate = true;
+  hud.play.hidden = false; hud.play.textContent = "Play as a robot"; hud.quit.hidden = true;
+  hud.stick.hidden = hud.jump.hidden = true; hud.hint.hidden = true;
+}
+
+const MOVE = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
+addEventListener("keydown", e => {
+  if (e.code === "Escape") { if (me) release(); else if (picking) hud.play.click(); return; }
+  if (!me) return;
+  if (e.code === "Space") { e.preventDefault(); if (!e.repeat) jumpQueued = true; }
+  if (MOVE[e.code]) { e.preventDefault(); keys[e.code] = true; }
+});
+addEventListener("keyup", e => { keys[e.code] = false; });
+addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+
+// touch: a thumb-stick on the left, a jump button on the right
+let stickId = null;
+hud.stick.addEventListener("pointerdown", e => { stickId = e.pointerId; hud.stick.setPointerCapture(stickId); moveStick(e); });
+hud.stick.addEventListener("pointermove", e => { if (e.pointerId === stickId) moveStick(e); });
+const endStick = e => { if (e.pointerId !== stickId) return; stickId = null; stickV.set(0, 0); hud.stick.firstElementChild.style.transform = ""; };
+hud.stick.addEventListener("pointerup", endStick);
+hud.stick.addEventListener("pointercancel", endStick);
+function moveStick(e) {
+  const r = hud.stick.getBoundingClientRect();
+  stickV.set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+  if (stickV.length() > 44) stickV.setLength(44);
+  hud.stick.firstElementChild.style.transform = `translate(${stickV.x}px, ${stickV.y}px)`;
+  stickV.divideScalar(44);
+}
+hud.jump.addEventListener("pointerdown", e => { e.preventDefault(); jumpQueued = true; });
+
+// how high is the floor here: the top of any block underneath that you could step onto
+function groundAt(x, z, y) {
+  let g = 0;
+  for (const s of solids)
+    if (Math.abs(x - s.x) < s.w / 2 + 0.2 && Math.abs(z - s.z) < s.d / 2 + 0.2 && s.top <= y + 0.45) g = Math.max(g, s.top);
+  return g;
+}
+function blocked(x, z, y) {
+  for (const s of solids)
+    if (Math.abs(x - s.x) < s.w / 2 + 0.35 && Math.abs(z - s.z) < s.d / 2 + 0.35 && s.top > y + 0.45) return true;
+  return false;
+}
+
+const fwd = new THREE.Vector3(), mv = new THREE.Vector3();
+function drive(b, dt) {
+  const p = b.root.position, ox = p.x, oy = p.y, oz = p.z;
+
+  // input, relative to where the camera is looking
+  let ix = stickV.x, iz = -stickV.y;
+  for (const k in MOVE) if (keys[k]) { ix += MOVE[k][0]; iz += MOVE[k][1]; }
+  camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+  mv.set(fwd.x * iz - fwd.z * ix, 0, fwd.z * iz + fwd.x * ix);
+  const moving = mv.lengthSq() > 0.02;
+  if (moving) {
+    if (mv.length() > 1) mv.normalize();
+    b.heading = Math.atan2(mv.x, mv.z);
+    const v = 5.2 * dt;
+    if (!blocked(p.x + mv.x * v, p.z, p.y)) p.x += mv.x * v;
+    if (!blocked(p.x, p.z + mv.z * v, p.y)) p.z += mv.z * v;
+    const r = Math.hypot(p.x, p.z), lim = R * 2.05;   // the buildings are the edge of the world
+    if (r > lim) { p.x *= lim / r; p.z *= lim / r; }
+  }
+
+  // jump, then a second press in the air for the parkour flip
+  if (jumpQueued) {
+    jumpQueued = false;
+    if (!b.air) { b.vy = 7.5; b.air = true; b.jumps = 1; play(b, "Jump", true, 0.1); b.clip = "Jump"; }
+    else if (b.jumps === 1) {
+      b.vy = Math.max(b.vy, 8.5); b.jumps = 2; b.flip = 0.001;
+      say(b, pick(["PARKOUR!", "parkour!!", "hold my oil", "nailed it (probably)"]), 1300);
+    }
+  }
+  b.vy -= 22 * dt;
+  p.y += b.vy * dt;
+  const g = groundAt(p.x, p.z, oy);
+  if (p.y <= g) {
+    p.y = g;
+    if (b.air) { b.air = false; b.flip = 0; b.root.rotation.x = 0; b.clip = ""; }
+    b.vy = 0;
+  } else if (!b.air && p.y > g + 0.05) { b.air = true; b.jumps = 1; }   // walked off an edge
+  if (b.flip > 0) {
+    b.flip += dt * 1.7;
+    b.root.rotation.x = Math.min(b.flip, 1) * Math.PI * 2;
+    if (b.flip >= 1) b.flip = -1;     // one full turn, then hold upright
+  }
+
+  if (!b.air) {
+    const want = moving ? "Running" : "Idle";
+    if (b.clip !== want) { play(b, want, false, 0.18); b.clip = want; }
+  }
+
+  // run into people and they fall over; run into the ball and you kick it
+  for (const o of bots) {
+    if (o === b || o.state === "down" || SPEC[o.role] || !moving) continue;
+    const dx = o.root.position.x - p.x, dz = o.root.position.z - p.z;
+    if (dx * dx + dz * dz < 1.4 && Math.abs(p.y) < 0.6 && (b.bumpCd = (b.bumpCd || 0) - dt) <= 0) {
+      knockDown(o); b.bumpCd = 0.6;
+      if (Math.random() < 0.4) say(b, pick(["sorry!", "coming through", "my bad", "watch it!"]), 1200);
+    }
+  }
+  const bp = ball.position;
+  if (goalPause <= 0 && Math.hypot(bp.x - p.x, bp.z - p.z) < 0.9 && p.y < 0.5) {
+    ballV.set(Math.sin(b.heading), Math.cos(b.heading)).multiplyScalar(moving ? 9 : 4);
+  }
+
+  // the camera comes along for the ride, keeping whatever angle you've dragged it to
+  const dx = p.x - ox, dy = p.y - oy, dz = p.z - oz;
+  controls.target.x += dx; controls.target.z += dz; camera.position.x += dx; camera.position.z += dz;
+  const ty = p.y + 1.2, sy = (ty - controls.target.y) * Math.min(1, dt * 6);
+  controls.target.y += sy; camera.position.y += sy;
+  marker.position.set(p.x, p.y + b.size * 6.2 + Math.sin(performance.now() / 200) * 0.08, p.z);
+}
 
 /* ---------- football ---------- */
 function goal(team) {
@@ -522,6 +812,7 @@ function chase(b, dt) {
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3();
+const dummy = new THREE.Object3D();
 let puffClock = 0, screenClock = 0;
 function tick() {
   requestAnimationFrame(tick);
@@ -534,7 +825,9 @@ function tick() {
   for (const b of bots) {
     b.timer -= dt; b.cooldown -= dt; b.talk -= dt;
     const p = b.root.position;
-    if (b.state === "walk") {
+    if (b.state === "me") {
+      drive(b, dt);
+    } else if (b.state === "walk") {
       const v = (b.run ? 4.2 : 1.6) * b.size * 2;
       if (Math.hypot(p.x, p.z) > R) b.heading = Math.atan2(-p.x, -p.z) + rnd(-0.6, 0.6);  // back to the middle
       p.x += Math.sin(b.heading) * v * dt;
@@ -572,7 +865,7 @@ function tick() {
     b.mixer.update(dt);
 
     if (!b.bubble.hidden) {
-      tmp.set(p.x, b.size * 5.4, p.z).project(camera);
+      tmp.set(p.x, p.y + b.size * 5.4, p.z).project(camera);
       if (now > b.sayUntil || tmp.z > 1) b.bubble.hidden = now > b.sayUntil;
       b.bubble.style.visibility = tmp.z > 1 ? "hidden" : "visible";   // behind the camera after a spin
       b.bubble.style.left = (tmp.x + 1) / 2 * innerWidth + "px";
@@ -623,6 +916,14 @@ function tick() {
     m.material.opacity = 0.55 * (1 - m.userData.age / 3);
     if (m.userData.age > 3) { scene.remove(m); m.material.dispose(); puffs.splice(i, 1); }
   }
+
+  // the people out there cheer, some of them hopping
+  for (let i = 0; i < people.length; i++) {
+    const h = people[i], y = h.hop ? Math.max(0, Math.sin(now / 260 + h.ph)) * h.hop : 0;
+    dummy.position.set(h.x, 0.63 + y, h.z); dummy.updateMatrix(); bodyI.setMatrixAt(i, dummy.matrix);
+    dummy.position.y = 1.42 + y; dummy.updateMatrix(); headI.setMatrixAt(i, dummy.matrix);
+  }
+  bodyI.instanceMatrix.needsUpdate = headI.instanceMatrix.needsUpdate = true;
 
   // question marks orbit the spiralling one; the rain cloud rains
   for (const m of marks) {
