@@ -166,8 +166,8 @@ body.in-menu .say { display:none; }
     <div class="menu" id="sides" hidden>
       <p class="kicker">pick your side</p>
       <div class="pick">
-        <button type="button" class="btn" data-team="0">Orange</button>
-        <button type="button" class="btn blue" data-team="1">Blue</button>
+        <button type="button" class="btn" data-team="0">Deploy FC</button>
+        <button type="button" class="btn blue" data-team="1">Loading Utd</button>
       </div>
       <button type="button" class="btn alt" data-go="back">Back</button>
     </div>
@@ -183,7 +183,7 @@ body.in-menu .say { display:none; }
     <button type="button" class="icon" id="menuBtn">Menu</button>
   </div>
 </div>
-<div id="score" hidden><span class="t0">ORG</span><span class="sc" id="sc">0 – 0</span><span class="t1">BLU</span><span class="clock" id="clock">3:00</span></div>
+<div id="score" hidden><span class="t0">DEP</span><span class="sc" id="sc">0 – 0</span><span class="t1">LOD</span><span class="clock" id="clock">3:00</span></div>
 <div id="banner"></div>
 <p id="hint" hidden></p>
 <div id="power" hidden><i></i></div>
@@ -231,7 +231,17 @@ const BX = PL + 2.4, BZ = PW + 1.8;        // the advertising boards that cage t
 const GAP = 7, TIERS = 6, TIER_H = 0.7, TIER_D = 1.3;
 const SIDE = BZ + 3.4, END = BX + 3.4;     // where the sideline robots live
 const OUT_X = BX + GAP + TIERS * TIER_D, OUT_Z = BZ + GAP + TIERS * TIER_D;
-const TEAMS = [{ name: "Orange", short: "ORG", color: 0xff7a3d, css: "#FF7A3D" }, { name: "Blue", short: "BLU", color: 0x4f8cff, css: "#4f8cff" }];
+// two clubs for a site that is still being built
+const TEAMS = [{ name: "Deploy FC", short: "DEP", color: 0xff7a3d, css: "#FF7A3D" }, { name: "Loading Utd", short: "LOD", color: 0x4f8cff, css: "#4f8cff" }];
+const KITS = [
+  { jersey: 0xff7a3d, trim: 0xffffff, shorts: 0xf2f2f2, socks: 0xff7a3d, boots: 0x16171b, num: "#ffffff" },
+  { jersey: 0x4f8cff, trim: 0xffffff, shorts: 0x1d2a4a, socks: 0x4f8cff, boots: 0x16171b, num: "#ffffff" },
+];
+const KEEPER_KITS = [
+  { jersey: 0xf6c445, trim: 0x16171b, shorts: 0x16171b, socks: 0xf6c445, boots: 0x16171b, num: "#16171b" },
+  { jersey: 0x2fbf71, trim: 0x16171b, shorts: 0x16171b, socks: 0x2fbf71, boots: 0x16171b, num: "#16171b" },
+];
+const SQUADS = [[["CACHE", 1], ["SHIP", 10], ["MERGE", 7], ["PUSH", 9]], [["BUFFER", 1], ["BETA", 10], ["WIP", 7], ["404", 9]]];
 const A = t => (t === 0 ? 1 : -1);         // team 0 attacks +x, team 1 attacks -x
 const RUN = 4.7, SPRINT = 6.6, CHASE = 5.4;
 
@@ -256,11 +266,11 @@ const LINES = {
   thinker: ["what if the domain expires", "is 7 KB too small??", "what if nobody scrolls", "but WHY did it work",
     "launch next week... or next year??"],
   spiral: ["but what if...", "hmm", "okay but what if", "spiralling, brb", "what if I'm the bug"],
-  shoot: ["SHOOT!", "top bins", "for the highlights reel", "watch this"],
-  save: ["not today", "nope", "my house", "too easy"],
-  goal: ["GOAL!!", "SIUUU", "get in!!", "did you see that?!"],
-  sad: ["the post!!", "VAR?!", "ref!!", "wind, obviously"],
-  tackle: ["mine now", "clean tackle", "sorry not sorry"],
+  shoot: ["SHOOT!", "top bins", "pushing to prod", "watch this"],
+  save: ["cached it", "404: goal not found", "not today", "my house"],
+  goal: ["GOAL!!", "SHIPPED IT", "merged to main!!", "deployed!!", "SIUUU"],
+  sad: ["the post!!", "flaky test", "VAR?!", "works on my machine"],
+  tackle: ["rolled back", "reverted", "mine now", "clean tackle"],
   hit: ["ow", "my pixels!", "rude", "I was compiling!", "bug report filed", "foul!!"],
   me: ["finally, freedom", "I have legs?!", "this is my moment", "where's the ball?"],
 };
@@ -602,7 +612,8 @@ function knockDown(b) {
 }
 // a prop in the right hand, sized in world units whatever the bone's own scale is
 function hold(b, prop) {
-  const hand = b.root.getObjectByName("HandR") || b.root.getObjectByName("Hand.R");
+  let hand = null;
+  b.root.traverse(o => { if (!hand && o.isBone && /^Palm2\.?R$/.test(o.name)) hand = o; });
   if (!hand) return prop;
   b.root.updateMatrixWorld(true);
   prop.scale.setScalar(1 / hand.getWorldScale(new THREE.Vector3()).x);
@@ -610,14 +621,30 @@ function hold(b, prop) {
   return prop;
 }
 
-function makeBot({ role, color, pos, heading = 0, size = rnd(0.46, 0.54) }) {
+// which kit colour each part of the robot wears: jersey on the body and arms, shorts, socks, boots
+function kitColour(part, mat, kit) {
+  if (/^Torso/.test(part)) return mat === "Main" ? kit.jersey : mat === "Grey" ? kit.trim : null;
+  if (/^(Shoulder|Arm)/.test(part)) return mat === "Main" ? kit.jersey : null;
+  if (/^LowerLeg/.test(part)) return mat === "Main" ? kit.socks : null;
+  if (/^Leg/.test(part)) return mat === "Main" ? kit.shorts : null;
+  if (/^Foot/.test(part)) return kit.boots;
+  if (/^(Head|Hand)/.test(part)) return mat === "Main" ? 0xc4c9d1 : null;   // a brushed-metal head and hands
+  return null;
+}
+function makeBot({ role, color, pos, heading = 0, size = rnd(0.46, 0.54), kit = null }) {
   const root = SkeletonUtils.clone(robotGltf.scene);
   let head = null;
   root.traverse(o => {
     if (!o.isMesh) return;
     o.castShadow = true;
     o.material = o.material.clone();
-    if (o.material.name === "Main") o.material.color = new THREE.Color(color);
+    const part = (o.name + "|" + (o.parent ? o.parent.name : "")).replace(/^\|/, "");
+    if (kit) {
+      const c = kitColour(o.name, o.material.name, kit) ?? kitColour(o.parent ? o.parent.name : "", o.material.name, kit);
+      if (c != null) o.material.color = new THREE.Color(c);
+      if (o.material.name === "Main") { o.material.roughness = 0.65; o.material.metalness = 0.05; }   // fabric, not plastic
+      if (/^(Head|Hand)/.test(part)) { o.material.metalness = 0.6; o.material.roughness = 0.35; }
+    } else if (o.material.name === "Main") o.material.color = new THREE.Color(color);
     if (o.morphTargetDictionary && "Surprised" in o.morphTargetDictionary) head = o;
   });
   root.scale.setScalar(size);
@@ -637,6 +664,27 @@ function makeBot({ role, color, pos, heading = 0, size = rnd(0.46, 0.54) }) {
   resume(b);
   mixer.update(rnd(0, 2));
   return b;
+}
+function shirt(b, name, num, colour) {
+  let torso = null;
+  b.root.traverse(o => { if (!torso && o.isBone && /^Torso(_\d+)?$/.test(o.name)) torso = o; });
+  if (!torso) return;
+  const tex = canvasTex(128, 128, g => {
+    g.clearRect(0, 0, 128, 128); g.fillStyle = colour; g.textAlign = "center";
+    g.font = "700 22px 'Chakra Petch', sans-serif"; g.fillText(name, 64, 30);
+    g.font = "700 76px 'Chakra Petch', sans-serif"; g.fillText(String(num), 64, 104);
+  });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: false }));
+  // place it on the robot's back in world space, then hand it to the torso bone so it moves with the body
+  b.root.updateMatrixWorld(true);
+  const at = new THREE.Vector3(); torso.getWorldPosition(at);
+  const h = b.root.rotation.y;
+  const off = 0.37 * b.size / 0.5;
+  plate.position.set(at.x - Math.sin(h) * off, at.y - 0.05, at.z - Math.cos(h) * off);
+  plate.rotation.set(0, h + Math.PI, 0);
+  scene.add(plate);
+  plate.updateMatrixWorld(true);
+  torso.attach(plate);
 }
 function removeBot(b) {
   scene.remove(b.root); b.bubble.remove();
@@ -1350,8 +1398,11 @@ function buildCast() {
   for (const team of [0, 1]) {
     const s = A(team);
     const add = (gk, base) => {
-      const b = makeBot({ role: "player", color: gk ? (team ? 0x2fbf71 : 0xf6c445) : TEAMS[team].color,
-        pos: new THREE.Vector3(base[0] * s * PL, 0, base[1] * PW), heading: s > 0 ? Math.PI / 2 : -Math.PI / 2, size: gk ? 0.53 : 0.5 });
+      const kit = (gk ? KEEPER_KITS : KITS)[team];
+      const b = makeBot({ role: "player", kit, pos: new THREE.Vector3(base[0] * s * PL, 0, base[1] * PW),
+        heading: s > 0 ? Math.PI / 2 : -Math.PI / 2, size: gk ? 0.53 : 0.5 });
+      const [name, num] = SQUADS[team][footballers.filter(f => f.team === team).length] || ["SOON", 99];
+      shirt(b, name, num, kit.num);
       const f = { b, team, gk, base: new THREE.Vector2(base[0], base[1]), vel: new THREE.Vector2(), kickCd: 0, tackleCd: 0, think: 0, holdT: 0 };
       b.fb = f; footballers.push(f);
     };
@@ -1569,8 +1620,7 @@ function tick() {
   updateCamera(dt);
   render();
 }
-function render() { renderer.render(scene, camera); }
-if (still) render();
+function render() { renderer.render(scene, camera); }if (still) render();
 </script>
 </body>
 </html>
