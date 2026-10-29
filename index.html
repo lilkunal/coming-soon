@@ -179,7 +179,6 @@ body.in-menu .say { display:none; }
   <p class="brand">Kunal Varshney<span>coming soon</span></p>
   <div class="icons">
     <button type="button" class="icon" id="camBtn" hidden>Cam</button>
-    <button type="button" class="icon" id="muteBtn">Sound</button>
     <button type="button" class="icon" id="menuBtn">Menu</button>
   </div>
 </div>
@@ -523,37 +522,6 @@ const bv = new THREE.Vector3();
 const lastBall = new THREE.Vector3();
 let owner = null, lastTouch = null, inNet = false;
 
-/* ---------- sound: a crowd that roars, a whistle, a kick ---------- */
-let ac = null, crowdGain = null, muted = false;
-function audioInit() {
-  if (ac || muted) return;
-  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
-  const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < len; i++) { last = last * 0.97 + (Math.random() * 2 - 1) * 0.03; d[i] = last * 6; }
-  const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
-  const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 650; bp.Q.value = 0.5;
-  crowdGain = ac.createGain(); crowdGain.gain.value = 0.05;
-  src.connect(bp).connect(crowdGain).connect(ac.destination); src.start();
-}
-function tone(f0, f1, dur, vol, type = "sine") {
-  if (!ac || muted) return;
-  const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
-  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur);
-}
-const sfx = {
-  kick: p => tone(170, 45, 0.15, 0.2 + 0.35 * p),
-  post: () => tone(1250, 880, 0.4, 0.1, "triangle"),
-  whistle: (n = 1) => { for (let i = 0; i < n; i++) setTimeout(() => tone(2900, 2750, i === n - 1 ? 0.5 : 0.2, 0.045, "square"), i * 300); },
-};
-function roar(v = 0.4) {
-  if (!crowdGain) return;
-  const t = ac.currentTime, g = crowdGain.gain;
-  g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + 0.25); g.linearRampToValueAtTime(0.05, t + 4.5);
-}
-
 /* ---------- robots ---------- */
 const bots = [];
 let robotGltf = null;
@@ -725,7 +693,6 @@ function kick(f, dx, dz, power, loft) {
   owner = null; lastTouch = f; f.kickCd = 0.4;
   bv.set(dx / d * power, loft, dz / d * power);
   ball.position.y = Math.max(ball.position.y, BALL_R + 0.02);
-  sfx.kick(power / 24);
 }
 function nearestTo(x, z, team, skipGk = true, skip = null) {
   let best = null, bd = Infinity;
@@ -837,7 +804,7 @@ function tryControl(f) {
     bv.x *= -0.35; bv.z *= -0.35; bv.y = Math.abs(bv.y) * 0.5 + 1; lastTouch = f; f.kickCd = 0.3; return;
   }
   owner = f; lastTouch = f; f.holdT = 0;
-  if (f.gk && speed > 9) { say(f.b, pick(LINES.save), 1500); excite = Math.max(excite, 0.4); roar(0.18); }
+  if (f.gk && speed > 9) { say(f.b, pick(LINES.save), 1500); excite = Math.max(excite, 0.4); }
 }
 
 function stepBall(dt) {
@@ -856,7 +823,7 @@ function stepBall(dt) {
     bp.addScaledVector(bv, dt);
     if (bp.y < BALL_R) {
       bp.y = BALL_R;
-      if (bv.y < -1.6) { bv.y *= -0.52; if (bv.y > 3) sfx.kick(0.1); } else bv.y = 0;
+      if (bv.y < -1.6) { bv.y *= -0.52; } else bv.y = 0;
     }
     const f = bp.y <= BALL_R + 0.01 ? Math.exp(-1.15 * dt) : Math.exp(-0.08 * dt);
     bv.x *= f; bv.z *= f;
@@ -888,7 +855,7 @@ function collide() {
       const dx = bp.x - gx, dz = bp.z - sz * GW, d = Math.hypot(dx, dz);
       if (bp.y < GH && d < r + 0.08 && d > 0) {
         const nx = dx / d, nz = dz / d, vn = bv.x * nx + bv.z * nz;
-        if (vn < 0) { bv.x -= 1.75 * vn * nx; bv.z -= 1.75 * vn * nz; sfx.post(); hitWood(); }
+        if (vn < 0) { bv.x -= 1.75 * vn * nx; bv.z -= 1.75 * vn * nz; hitWood(); }
         bp.x = gx + nx * (r + 0.08); bp.z = sz * GW + nz * (r + 0.08);
       }
     }
@@ -896,7 +863,7 @@ function collide() {
       const dx = bp.x - gx, dy = bp.y - GH, d = Math.hypot(dx, dy);
       if (d < r + 0.08 && d > 0) {
         const nx = dx / d, ny = dy / d, vn = bv.x * nx + bv.y * ny;
-        if (vn < 0) { bv.x -= 1.75 * vn * nx; bv.y -= 1.75 * vn * ny; sfx.post(); hitWood(); }
+        if (vn < 0) { bv.x -= 1.75 * vn * nx; bv.y -= 1.75 * vn * ny; hitWood(); }
         bp.x = gx + nx * (r + 0.08); bp.y = GH + ny * (r + 0.08);
       }
     }
@@ -908,7 +875,7 @@ function collide() {
 let woodCd = 0;
 function hitWood() {
   if (woodCd > 0 || !lastTouch) return; woodCd = 1.5;
-  say(lastTouch.b, pick(LINES.sad), 1500); excite = Math.max(excite, 0.5); roar(0.22);
+  say(lastTouch.b, pick(LINES.sad), 1500); excite = Math.max(excite, 0.5);
 }
 
 function kickoff(team) {
@@ -932,7 +899,7 @@ function goalScored(team) {
   const own = lastTouch && lastTouch.team !== team;
   owner = null;
   banner(own ? "Own goal" : "Goal!", TEAMS[team].css);
-  excite = 1; roar(0.55); sfx.whistle(1);
+  excite = 1;
   for (const f of footballers) {
     if (f.b.state === "down") continue;
     if (f.team === team) { act(f.b, f === lastTouch ? "Dance" : pick(["ThumbsUp", "Jump", "Dance", "Yes"]), 3); face(f.b, "Surprised", 0.6); }
@@ -943,7 +910,6 @@ function goalScored(team) {
 }
 function fullTime() {
   game.phase = "end"; game.clock = false;
-  sfx.whistle(3); roar(0.35);
   const [a, b] = game.score, h = game.human;
   const mine = game.score[h], theirs = game.score[1 - h];
   ui.ftScore.textContent = `${a} – ${b}`;
@@ -960,7 +926,7 @@ function updateMatch(dt) {
   woodCd -= dt;
   if (game.phase === "kickoff") {
     game.phaseT -= dt;
-    if (game.phaseT <= 0) { game.phase = "play"; sfx.whistle(1); }
+    if (game.phaseT <= 0) { game.phase = "play"; }
   } else if (game.phase === "goal") {
     game.phaseT -= dt;
     if (game.phaseT <= 0) kickoff(1 - game.scorer);
@@ -1124,7 +1090,7 @@ function drive(b, dt) {
   if (Math.hypot(bp.x - p.x, bp.z - p.z) < 0.9 && Math.abs(bp.y - p.y) < 0.8) {
     if (owner) { const o = owner; owner = null; o.kickCd = 0.8; }
     bv.set(Math.sin(b.heading) * (sprint ? 15 : 9), sprint ? 3 : 1.2, Math.cos(b.heading) * (sprint ? 15 : 9));
-    lastTouch = null; sfx.kick(sprint ? 0.7 : 0.4);
+    lastTouch = null;
   }
 }
 
@@ -1188,7 +1154,6 @@ addEventListener("keydown", e => {
     if (e.code === "KeyQ") switchBtn();
     if (e.code === "KeyC") toggleCam();
   }
-  if (e.code === "KeyM") toggleMute();
 });
 addEventListener("keyup", e => {
   keys[e.code] = false;
@@ -1263,7 +1228,7 @@ const $ = id => document.getElementById(id);
 const ui = { menu: $("menu"), main: $("mainMenu"), sides: $("sides"), keys: $("keys"), top: $("top"), score: $("score"),
   sc: $("sc"), clock: $("clock"), hint: $("hint"), power: $("power"), powerBar: $("power").firstElementChild,
   stick: stickEl, padF: $("padF"), padR: $("padR"), ft: $("ft"), ftScore: $("ftScore"), ftLine: $("ftLine"),
-  again: $("again"), cam: $("camBtn"), mute: $("muteBtn"), banner: $("banner") };
+  again: $("again"), cam: $("camBtn"), banner: $("banner") };
 ui.keys.innerHTML = touch
   ? "<b>football</b> stick to move · hold Shoot · Pass · Switch<br><b>roam</b> stick to move · drag to look · Jump, twice to flip"
   : "<b>football</b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint · hold <kbd>Space</kbd> shoot or tackle · <kbd>E</kbd> pass · <kbd>Q</kbd> switch · <kbd>C</kbd> camera"
@@ -1358,25 +1323,18 @@ function startRoam() {
   camera.position.set(0, 5, SIDE + 10); camLook.set(0, 1.6, SIDE + 1.5);
 }
 function toggleCam() { camStyle = camStyle === "tv" ? "chase" : "tv"; if (ctl) yaw = ctl.b.heading + Math.PI; }
-function toggleMute() {
-  muted = !muted;
-  if (ac) muted ? ac.suspend() : ac.resume();
-  ui.mute.textContent = muted ? "Muted" : "Sound";
-}
 document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => {
-  audioInit();
   const go = b.dataset.go;
   if (go === "football") { ui.main.hidden = true; ui.sides.hidden = false; ui.sides.querySelector("button").focus(); }
   else if (go === "back") { ui.sides.hidden = true; ui.main.hidden = false; ui.main.querySelector("button").focus(); }
   else if (go === "roam") startRoam();
   else if (go === "watch") show("watch");
 }));
-document.querySelectorAll("[data-team]").forEach(b => b.addEventListener("click", () => { audioInit(); startMatch(+b.dataset.team); }));
+document.querySelectorAll("[data-team]").forEach(b => b.addEventListener("click", () => startMatch(+b.dataset.team)));
 ui.again.addEventListener("click", () => startMatch(game.human < 0 ? 0 : game.human));
 $("ftMenu").addEventListener("click", toMenu);
 $("menuBtn").addEventListener("click", toMenu);
 ui.cam.addEventListener("click", toggleCam);
-ui.mute.addEventListener("click", () => { audioInit(); toggleMute(); });
 
 function fit() {
   camera.aspect = innerWidth / innerHeight;
