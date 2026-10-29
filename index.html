@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Coming soon · Kunal Varshney</title>
-<meta name="description" content="kunalvarshney.com opens on 19 November 2026. Until then, a robot football stadium you can play in.">
+<meta name="description" content="kunalvarshney.com is coming soon. Until then, a robot football stadium you can play in.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0f1013">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FF7A3D'/%3E%3Cstop offset='1' stop-color='%23E02F6B'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Crect x='8' y='14' width='18' height='18' rx='3' opacity='.6'/%3E%3Crect x='36' y='30' width='52' height='52' rx='8'/%3E%3C/g%3E%3C/svg%3E">
@@ -158,7 +158,6 @@ body.in-menu .say { display:none; }
   <div class="panel">
     <p class="kicker">kunalvarshney.com</p>
     <h1 class="title">Coming<br>soon</h1>
-    <p class="date">19 · 11 · 2026</p>
     <div class="menu" id="mainMenu">
       <button type="button" class="btn" data-go="football">Play football</button>
       <button type="button" class="btn alt" data-go="roam">Free roam</button>
@@ -177,7 +176,7 @@ body.in-menu .say { display:none; }
 </div>
 
 <div class="top" id="top" hidden>
-  <p class="brand">Kunal Varshney<span>opens 19.11.2026</span></p>
+  <p class="brand">Kunal Varshney<span>coming soon</span></p>
   <div class="icons">
     <button type="button" class="icon" id="camBtn" hidden>Cam</button>
     <button type="button" class="icon" id="muteBtn">Sound</button>
@@ -237,7 +236,7 @@ const A = t => (t === 0 ? 1 : -1);         // team 0 attacks +x, team 1 attacks 
 const RUN = 4.7, SPRINT = 6.6, CHASE = 5.4;
 
 const LINES = {
-  chill: ["what if CSS is... like, a feeling", "the cache is everywhere, man", "19 november is a state of mind",
+  chill: ["what if CSS is... like, a feeling", "the cache is everywhere, man", "launch day is a state of mind",
     "ship it... tomorrow", "whoa. the floodlights.", "the pixels are breathing"],
   gamer: ["GG, stuartboi#0702 wins", "one more match", "lag!! that was lag", "my Steam library judges me",
     "T2 console, never forget", "I'd have scored that"],
@@ -255,7 +254,7 @@ const LINES = {
     "they used a full stop. it's over."],
   decider: ["push it? no. yes. no.", "tabs or spaces... both?", "light mode? dark mode? ??", "ok final answer: maybe"],
   thinker: ["what if the domain expires", "is 7 KB too small??", "what if nobody scrolls", "but WHY did it work",
-    "19 november... or 20th??"],
+    "launch next week... or next year??"],
   spiral: ["but what if...", "hmm", "okay but what if", "spiralling, brb", "what if I'm the bug"],
   shoot: ["SHOOT!", "top bins", "for the highlights reel", "watch this"],
   save: ["not today", "nope", "my house", "too easy"],
@@ -388,7 +387,7 @@ const ledTexs = [];
 const ledBase = canvasTex(1024, 64, paintLed);
 function paintLed(g, W = 1024, H = 64) {
   g.fillStyle = "#08090b"; g.fillRect(0, 0, W, H);
-  const items = [["KUNALVARSHNEY.COM", "#FF7A3D"], ["OPENS 19.11.2026", "#ffffff"], ["WEBSITES · SEO · TOOLS", "#E02F6B"], ["COMING SOON", "#4f8cff"]];
+  const items = [["KUNALVARSHNEY.COM", "#FF7A3D"], ["WEBSITES · SEO · TOOLS", "#E02F6B"], ["COMING SOON", "#4f8cff"]];
   g.font = "italic 700 40px 'Chakra Petch', sans-serif"; g.textBaseline = "middle";
   let x = 10;
   for (const [t, c] of items) { g.fillStyle = c; g.fillText(t, x, H / 2 + 2); x += g.measureText(t).width + 40; }
@@ -1250,7 +1249,7 @@ function drawJumbo(goalFlash) {
     g.fillText(game.phase === "end" ? "FULL TIME" : ui.clock.textContent, W / 2, 320);
   } else {
     g.fillStyle = grad; g.font = "italic 700 112px 'Chakra Petch', sans-serif"; g.fillText("COMING SOON", W / 2, 150);
-    g.fillStyle = "#fff"; g.font = "700 54px 'Chakra Petch', sans-serif"; g.fillText("19 · 11 · 2026", W / 2, 260);
+    g.fillStyle = "#fff"; g.font = "700 54px 'Chakra Petch', sans-serif"; g.fillText("STAY TUNED", W / 2, 260);
     g.fillStyle = "#9aa1ac"; g.font = "500 30px 'IBM Plex Mono', monospace"; g.fillText(`kunalvarshney.com   ${game.score[0]}-${game.score[1]}`, W / 2, 350);
   }
   jtex.needsUpdate = true;
